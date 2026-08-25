@@ -1,0 +1,1607 @@
+% =====================================================================
+%  NSIGII Protocol Specification
+%  OBINEXUS-NSIGII-SPEC  v0.1 (Draft)
+%  Derived from the NSIGII transcript corpus (6 sessions, Jan-Jun 2026)
+%  Companion document: NSIGII-SPEC.md
+%  Build:  pdflatex nsigii-spec.tex  (run twice for the ToC)
+% =====================================================================
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+%\usepackage{lmodern}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{fancyvrb}
+\usepackage{tcolorbox}
+\usepackage[hidelinks]{hyperref}
+\usepackage{textcomp}
+
+\definecolor{errcol}{HTML}{8A3324}
+\definecolor{rulecol}{HTML}{1F3A5F}
+
+\newcommand{\MUST}{\textsc{must}}
+\newcommand{\MUSTNOT}{\textsc{must not}}
+\newcommand{\SHOULD}{\textsc{should}}
+\newcommand{\MAY}{\textsc{may}}
+\newcommand{\NSIGII}{\textsc{nsigii}}
+\newcommand{\CISCO}{\textsc{cisco}}
+\newcommand{\LAPIS}{\textsc{lapis}}
+\newcommand{\OBI}{\texttt{OBINEXUS}}
+
+\newtcolorbox{errata}[1]{colback=errcol!5,colframe=errcol!70,
+  fonttitle=\bfseries,title={#1},boxrule=0.5pt,left=4pt,right=4pt,
+  top=3pt,bottom=3pt}
+\newtcolorbox{ruleblock}{colback=rulecol!5,colframe=rulecol!60,
+  boxrule=0.5pt,left=4pt,right=4pt,top=3pt,bottom=3pt}
+
+\newcommand{\seg}[1]{\textsc{#1}}
+
+\title{\bfseries \NSIGII{} Protocol Specification\\[4pt]
+\large Trident Packet Verification via Bipolar \CISCO{}\\
+\large Order/Chaos Separation of Concerns}
+\author{Nnamdi Michael Okpala \\ OBINexus Computing}
+\date{Version 0.3 --- Draft \\ Compiled 25 August 2026}
+
+\begin{document}
+\maketitle
+
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\toprule
+Document ID & \texttt{OBINEXUS-NSIGII-SPEC} \\
+Version & 0.3 --- Draft \\
+Status & Working draft, derived from primary transcript corpus \\
+Source & \texttt{NSIGII.txt} --- 6 recorded sessions, Jan--Jun 2026 \\
+Companion & \texttt{NSIGII-SPEC.md} (Markdown, same content) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\tableofcontents
+\newpage
+
+% =====================================================================
+\section{Document Status and Provenance}
+
+\subsection{What this document is}
+
+This is a \emph{derived} specification. It is not a transcript and not an
+independent design. Every normative statement traces to a claim made in the
+\NSIGII{} recording corpus. Where the corpus is internally inconsistent, this
+document states the inconsistency rather than silently choosing a side.
+
+\subsection{Source corpus}
+
+\begin{center}
+\begin{tabular}{@{}llp{8.4cm}@{}}
+\toprule
+\textbf{Seg} & \textbf{Date in recording} & \textbf{Working title} \\
+\midrule
+S1 & 30 Jan 2026, 05:39 & Trident packet verification via bipolar \CISCO{} --- order/chaos separation of concerns \\
+S2 & 13 Jan 2026, 10:15 & Filter/flash interdependency --- \CISCO{} sequence and series instruction execution order via inverse relay trident messages \\
+S3 & 13 Jan 2026, 18:08 & \NSIGII{} overview --- human rights protocol, pointer problem, \textsc{ox-star} \\
+S4 & 7 Feb 2026 + 2 Mar 2026 & Formalising suffering; here-and-now/stillness; radio jamming and the maybe lattice \\
+S5 & undated + 12 Feb 2026 & Trilateral governance; reference implementation demonstration \\
+S6 & 28 Jun 2026 + undated & Dimensional principality and non-linearity; the \NSIGII{} codec and language classifiers \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Transcription caveat}
+
+The corpus is machine-transcribed speech. Proper nouns, symbols and numbers are
+frequently corrupted: \texttt{in sigi}, \texttt{insigi}, \texttt{insidity},
+\texttt{ciggy} all denote \NSIGII{}; \texttt{Cisco} denotes \CISCO{} as defined
+in \S\ref{sec:cisco}, not the network vendor; \texttt{rift} denotes the
+\textsc{rift} toolchain; \texttt{lapis} denotes \LAPIS{}
+(\S\ref{sec:lapis}). Numeric claims are reproduced in
+Appendix~\ref{app:errata} with corrected values.
+
+\subsection{Conformance language}
+
+\MUST{}, \MUSTNOT{}, \SHOULD{}, \MAY{} are used in the RFC~2119 sense.
+Statements marked \emph{(unresolved)} are recorded intent that is not yet
+specifiable.
+
+% =====================================================================
+\section{Overview}
+
+\subsection{Name}
+
+\NSIGII{} --- spelled in the corpus as November--Sierra--India--Golf--India--India.
+The name is drawn from Igbo (Niger--Congo). Igbo is described in the corpus as a
+tonal, verb--noun--constructed language, and that construction is load-bearing:
+the protocol's instruction model is a verb--noun pairing (\S\ref{sec:verbnoun}),
+and its tonal distinction is the canonical example of a message whose meaning
+depends on a channel the encoding must preserve.
+
+The corpus gives the tonal example directly: \emph{eze} under one tone contour
+means \textbf{king}; under another it means \textbf{teeth}. The protocol's
+stated position is that ``the king has teeth'' --- the governance layer and the
+enforcement layer are the same word under different tone. A codec that drops
+tone drops meaning; this is the motivating case for schema-level rather than
+message-level verification (\S\ref{sec:repair}).
+
+\subsection{Purpose}
+
+\NSIGII{} is a \textbf{command-and-control protocol for safety-critical delivery
+of human-rights entitlements} --- stated in the corpus, repeatedly and without
+metaphor, as \emph{food, water and shelter, here and now}. Its technical content
+is in service of that: a message saying ``I need food at this address now'' must
+survive corruption, must be verifiable by a third party, must not be silently
+dropped, and must leave an auditable record that a duty-holder received it.
+
+The protocol is explicitly \emph{not} an AI system. Natural-language
+understanding here is structural (\S\ref{sec:lang}), not learned.
+
+\subsection{Governance invariants --- the Three Nevers}
+\label{sec:nevers}
+
+Implementations \MUST{} satisfy three invariants (S5). They are \textbf{not
+three independent rules}: each is the invariant of one \textbf{addressing mode}
+(\S\ref{sec:addressing}). The Three Nevers and the addressing triad are the same
+structure seen twice (author ratification, 25 August 2026).
+
+\begin{ruleblock}
+\begin{center}
+\textbf{here and now --- never a toy}\\
+\textbf{there and then --- never a weapon}\\
+\textbf{where and whenever --- never a problem}
+\end{center}
+\end{ruleblock}
+
+\begin{center}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{3.1cm}>{\raggedright\arraybackslash}p{2.6cm}>{\raggedright\arraybackslash}p{8.4cm}@{}}
+\toprule
+\textbf{Mode} & \textbf{Never} & \textbf{Requirement} \\
+\midrule
+\textsc{here and now} & never a toy & The system \MUSTNOT{} be shipped as a
+  demonstration or a game. \\[2pt]
+\textsc{there and then} & never a weapon & The system \MUSTNOT{} be usable as an
+  instrument of harm against the person it serves. \\[2pt]
+\textsc{where and whenever} & never a problem & The system \MUSTNOT{} crash and
+  \MUSTNOT{} accumulate debt. It fails \emph{gracefully}: times out, resolves
+  outstanding state, saves, closes. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{Why each never belongs to its mode.}
+
+\begin{enumerate}[leftmargin=*]
+  \item \textsc{here and now} $\rightarrow$ \textbf{never a toy.} The deictic
+    mode is where the need is \emph{actual} --- food, at this address, now. Both
+    dimensions bound means both are real. A toy is a thing played with in the
+    present; the mode that owns the present is therefore the mode that must
+    forbid play. The corpus: \emph{``it's not a toy, that's not how to play with
+    it --- it's something that gives people food and shelter.''}
+  \item \textsc{there and then} $\rightarrow$ \textbf{never a weapon.}
+    \textbf{Displacement is what makes a weapon possible.} Targeting \emph{is} a
+    there-and-then operation: a specified elsewhere, a specified later, acted on
+    at a distance. Every reach the protocol has --- \textsc{ox-star} injection,
+    guiding a craft in flight, disarming a running system
+    (\S\ref{sec:oxstar}) --- lives in this mode. The prohibition is placed
+    exactly where the reach is. A protocol that can act at a distance \MUSTNOT{}
+    act at a distance to harm.
+  \item \textsc{where and whenever} $\rightarrow$ \textbf{never a problem.} The
+    unbound mode \emph{cannot fail into a fault, because it has no slot to
+    miss.} A claim quantified over all place and time is never overdue, so it
+    accrues no debt; it is not failing, it is unresolved. Graceful failure is not
+    a behaviour bolted onto this mode --- it is what unboundedness \emph{is}.
+    This is the same result \S\ref{sec:stillness} reaches from the other
+    direction.
+\end{enumerate}
+
+\begin{errata}{Naming note (v0.3)}
+v0.1--0.2 of this document rendered the first invariant as ``never fails.'' That
+is the corpus's \emph{gloss}, not its name. S5 states \textbf{``never a
+problem''} and then explains it as \emph{``it never fails --- it fails
+gracefully, it times out, it resolves all issues and saves.''} The canonical name
+is restored here.
+\end{errata}
+
+\begin{errata}{Tension (now largely resolved)}
+S5 states ``never a weapon --- you cannot sue people'' while S5b develops
+\NSIGII{} explicitly as a \emph{litigation system} (\S\ref{sec:litigation}). The
+mode pairing gives the resolution a precise locus: ``never a weapon'' is the
+invariant of \textsc{there and then} --- the protocol's own reach across space
+and time. A claimant using their own verified record to enforce their own
+entitlement is not the protocol reaching out to harm; it is the claimant acting
+in \textsc{here and now}, under a different invariant entirely. See
+\S\ref{sec:reconcile}.
+\end{errata}
+
+\subsection{Governance topology}
+
+\NSIGII{} is \textbf{trilateral}, over a lattice of three governance modes:
+\textbf{unilateral} (one party acts, the protocol records); \textbf{bilateral}
+(two parties, the yes/no axis); \textbf{trilateral} (three parties, the
+yes/no/\emph{maybe} axis, which is the protocol's native consensus form,
+\S\ref{sec:rgb}).
+
+The transport topology is \textbf{peer-to-peer}, not blockchain. The corpus
+rejects blockchain explicitly while retaining the property it wants from it ---
+that a record, once made, has teeth.
+
+\subsection{Position in the OBINexus toolchain}
+
+\begin{Verbatim}[fontsize=\small,frame=single]
+riftlang.exe  ->  .so.a  ->  rift.exe  ->  gosilang
+                    ^
+                 nlink  ->  polybuild
+\end{Verbatim}
+
+\begin{itemize}[leftmargin=*]
+  \item \textbf{RIFT} supplies the token model \NSIGII{} packets carry: the
+    triplet \emph{(token type, token value, token data)} ---
+    \S\ref{sec:triplet}.
+  \item \texttt{.rift} files carry the macro/meta control sequences \NSIGII{}
+    relays.
+  \item \textbf{gosilang} is the stated implementation target for the
+    clause/\texttt{then} control-flow model (\S\ref{sec:then}).
+  \item The reference implementation demonstrated in S5b is C, built with
+    \texttt{make}, with a Go codec (\S\ref{sec:codec}).
+\end{itemize}
+
+% =====================================================================
+\section{Foundational Model}
+
+\subsection{The six operators}
+\label{sec:ops}
+
+All state change is organised into three complementary pairs:
+
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Pair} & \textbf{Constructive} & \textbf{Destructive} \\
+\midrule
+Existence   & create & destroy \\
+Structure   & build  & break \\
+Restoration & repair & renew \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{ruleblock}
+\emph{If you can build something you can break it; if you can create something
+you can destroy it; if you can repair something you can renew it.}
+\end{ruleblock}
+
+Capability is symmetric. An implementation offering one half of a pair \MUST{}
+account for the other half --- either by implementing it or by declaring it
+structurally impossible (\S\ref{sec:enzyme}).
+
+Note that \emph{repair} and \emph{renew} are both constructive in ordinary
+usage. The corpus treats \textbf{renew} as the operator replacing a value the
+receiver cannot resolve (an $\epsilon$ or $\theta$, \S\ref{sec:corrupt}), and
+\textbf{repair} as the operator correcting a value the receiver resolved
+wrongly. That distinction is preserved.
+
+\subsection{Order and Chaos sequences}
+\label{sec:orderchaos}
+
+Two opposed instruction sequences run over the six operators.
+
+\begin{align*}
+\textsc{order} \;&:\; \text{create} \rightarrow \text{build} \rightarrow \text{repair} \rightarrow \text{renew} \\
+\textsc{chaos} \;&:\; \text{destroy} \rightarrow \text{break} \rightarrow \text{renew} \rightarrow \text{repair}
+\end{align*}
+
+\begin{ruleblock}
+\textbf{\textsc{chaos} is not an error state.} Chaos is the \emph{observable};
+order is inferred from it. \emph{``You check chaos for order just by observing
+the dimension of order and chaos where the program was running.''}
+\end{ruleblock}
+
+Every channel carries a status of \texttt{ORDER} or \texttt{CHAOS}. The S5b
+demonstration shows a receiver reporting status \texttt{chaos} and resolving
+toward \texttt{order}: nominal behaviour, not a fault.
+
+\subsection{The isolation principle (enzyme model)}
+\label{sec:enzyme}
+
+The founding analogy is salivary enzyme. It has \emph{no nucleus} and does not
+replicate itself; it \emph{breaks down} food but does not build; it cannot
+repair or rebuild itself and is replaced from outside, by the gland, at a
+\emph{constant --- not exponential} rate; and it nonetheless does a job as a
+system without being a conscious organism.
+
+\begin{ruleblock}
+\textbf{Design rule.} A verifying component \MUST{} be isolated from the thing
+it verifies, and \MUSTNOT{} be able to repair itself. A verifier that can
+rewrite itself can be made to agree with anything. Replacement of a verifier
+comes from outside the verification path, at a bounded constant rate.
+\end{ruleblock}
+
+This is the structural argument for the three-channel separation of
+\S\ref{sec:channels}.
+
+\subsection{Filter and Flash}
+\label{sec:filterflash}
+
+\textbf{\textsc{filter}} --- sorting, searching, merging, splicing, slicing.
+Filter operations are \emph{pure}: they mutate \emph{data} but \MUSTNOT{}
+mutate \emph{program state}. Merge sort and splice are the canonical filters;
+splice prunes an index without touching program state.
+
+\textbf{\textsc{flash}} --- storing, sending, clearing, deleting. Flash is the
+phase that \emph{commits}: it writes the message out, or writes it down.
+
+Neither is meaningful alone. Filter without flash computes and discards; flash
+without filter commits noise. The ratio is fixed by the \CISCO{} budget of
+\S\ref{sec:ratio}: \textbf{two filter operations per one flash operation}.
+Marshalling (\S\ref{sec:marshal}) is a flash operation --- \emph{``if you can
+marshal, you're doing a flash.''}
+
+% =====================================================================
+\section{The Trident Packet}
+
+\subsection{Why three}
+
+The world is three-dimensional; therefore an interpretation served over it is
+three-dimensional. A \textbf{trident packet} carries the message across three
+axes --- $X$, $Y$, $Z$ --- and preserves it under any one of them. The three
+axes are \emph{not} three copies; they are three \emph{readings} of one
+message, which is why two of the three suffice (\S\ref{sec:threetwo}).
+
+\subsection{Frame geometry}
+\label{sec:frame}
+
+The canonical frame derives from the reference string \OBI{}:
+
+\begin{center}
+\begin{tabular}{@{}llc@{}}
+\toprule
+\textbf{Quantity} & \textbf{Value} & \textbf{Derivation} \\
+\midrule
+Reference symbol count & 8 & \texttt{O B I N E X U S} \\
+Index space per axis & 8 & indices $0$--$7$ \\
+\textbf{Frame size} & \textbf{512 bytes} & $8^{3}$ \\
+Bytes per symbol slot & 64 & $8^{2} = 512/8$ \\
+Trident total & 1536 bytes & $512 \times 3$ \\
+Half-frame & 256 bytes & $512/2$ \\
+\textbf{Allocation quantum} & \textbf{4 bytes} & $256/64$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Memory \MUST{} be allocated ahead of time, in 4-byte sequences
+(\S\ref{sec:budget}).
+
+\begin{errata}{Errata A.2, A.3}
+The generalisation to the full Latin alphabet is stated in S2 as $15{,}625 =
+25^{3}$, using the \emph{maximum index} $25$ as the base. For 26 symbols
+indexed $0$--$25$ the correct figure is $26^{3} = 17{,}576$. The 8-symbol case
+$8^{3} = 512$ is correct as stated.
+\end{errata}
+
+\subsection{Axis pairs and sequence}
+
+Two axes generate four ordered readings: $XX$, $XY$, $YX$, $YY$. $XX$ is the
+\textbf{verification axis}; $XY$ and $YX$ carry direction of flow.
+
+\begin{ruleblock}
+\emph{``You cannot have a $Y$-axis without an $X$-axis.''} $Y$ is computable
+from two $X$ readings (one positive, one negative) via the polar relation of
+\S\ref{sec:lapis}. $Z$ is the projection --- the tangent relation between $X$
+and $Y$ --- used for \emph{rotation}, not for payload. Therefore:
+\textbf{verification operates on the $X$ axis only.}
+\end{ruleblock}
+
+\subsection{Index-pair addressing}
+\label{sec:index}
+
+Positions are addressed as \emph{index pairs}, not scalars:
+\[
+(0,0)\;(1,1)\;(2,2)\;(3,3)\;(4,4)\;(5,5)\;(6,6)\;(7,7)
+\]
+for the 8 slots of \OBI{}. The pair is \emph{(my index, your index)}: the
+diagonal $(n,n)$ asserts sender/receiver agreement on slot $n$.
+
+An off-diagonal pair received where a diagonal was expected is a \emph{detected
+corruption}. Receiving $(3,2)$ where the schema says $(3,3)$ makes the message
+wrong \emph{automatically}, with no inspection of the payload.
+
+\textbf{Negative indices} are the polar inverse: $(-3,3)$ addresses the same
+slot from the opposite end of the axis. When a receiver cannot resolve a symbol
+at all, the sender transmits both poles so the receiver can locate the slot from
+whichever end it reads from --- which is why a repair transmission carries up to
+three packets, two at a time (\S\ref{sec:threetwo}).
+
+\subsection{Token triplet}
+\label{sec:triplet}
+
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Field} & \textbf{Meaning} \\
+\midrule
+token type  & the type of the value \\
+token value & the value itself \\
+token data  & the datum the value acts on / is logged as \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Type and value are independently transmissible, which is what allows a receiver
+to repair a value while keeping its type (\S\ref{sec:repair}).
+
+\subsection{The $3 \rightarrow 2$ verification mapping}
+\label{sec:threetwo}
+
+A trident sends three messages; verification consumes two. With each labelled
+\texttt{O} (order) or \texttt{C} (chaos), the receiver may be handed
+$\texttt{OO}$, $\texttt{OC}$, $\texttt{CO}$, $\texttt{CC}$ --- four ordered
+pairs, $\binom{3}{2} = 3$ unordered combinations.
+
+\begin{ruleblock}
+\textbf{Rule.} A receiver \MUST{} reach a verdict from any two of the three, and
+\MUSTNOT{} require all three. The third is the spare --- it is what lets the
+system survive a single-channel loss, and why the corpus notes that \emph{``two
+homogeneous transistors can fail''} while the system still resolves.
+\end{ruleblock}
+
+The $3 \rightarrow 2$ relation is modelled on spring physics: the message is
+pushed and returns. The operational consequence is the space/time duality of
+\S\ref{sec:duality}.
+
+\subsection{Corruption classes}
+\label{sec:corrupt}
+
+The corpus works a single example throughout:
+
+\begin{Verbatim}[fontsize=\small,frame=single]
+sent:      O    B    I    N    E    X    U    S
+received:  O    I    e    t    e    X    U    S
+                    (e = epsilon, t = theta)
+\end{Verbatim}
+
+\begin{center}
+\begin{tabular}{@{}llp{6.0cm}l@{}}
+\toprule
+\textbf{Class} & \textbf{Symbol} & \textbf{Meaning} & \textbf{Operator} \\
+\midrule
+Substitution & wrong symbol & receiver resolved, resolved wrongly & \textbf{repair} \\
+Empty & $\epsilon$ & receiver resolved to nothing & \textbf{renew} \\
+Uncertain & $\theta$ & receiver unsure between candidates & \textbf{renew} + table \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+$\epsilon$ is \emph{``you don't know what this is.''} $\theta$ is \emph{``you're
+not sure what this is''} --- a \emph{bounded} ambiguity where the receiver has
+candidates but cannot choose. The worked $\theta$ case: \texttt{N} may read as
+\texttt{E}, \texttt{I} or \texttt{M} depending on where the reader started on
+the lookup grid, because \emph{``my N is your E, my E is your X, my X is your
+S''} --- a uniform off-by-one shift of the reader's frame.
+
+\subsection{Repair procedure}
+\label{sec:repair}
+
+Repair is \textbf{index-first, payload-second}. The sender \MUSTNOT{}
+retransmit the payload for a slot the receiver resolved correctly.
+
+\begin{enumerate}[leftmargin=*]
+  \item \texttt{O} at slot 0 --- correct. \textbf{No action.} \emph{``O is fine.
+    I verified. I didn't need to send O again.''}
+  \item \texttt{B} at slot 1 received as \texttt{I} --- substitution. Transmit
+    the \emph{index pair} $(1,1)$, not the letter.
+  \item $\epsilon$ at slot 2 --- empty. \textbf{Renew}: transmit $(2,2)$ plus
+    the value.
+  \item $\theta$ at slot 3 --- uncertain. Transmit the polar pair $(-3,3)$ plus
+    a shift-of-view instruction (\S\ref{sec:shift}).
+  \item \texttt{X}, \texttt{U}, \texttt{S} --- correct. \textbf{No action.}
+\end{enumerate}
+
+\begin{ruleblock}
+\textbf{Schema, not message.} The verification target is the \emph{schema}, not
+the payload: \emph{``the schema is supposed to verify, not the message\dots{}
+message can be tampered with but not the schema.''} This is why index pairs are
+the repair currency --- they are schema-level assertions.
+\end{ruleblock}
+
+\subsection{Lookup grid and shift-of-view}
+\label{sec:shift}
+
+Where $\theta$ cannot be resolved by index alone, the sender transmits a
+\textbf{shift-of-view}: a relative move on a 2-D lookup grid of the symbol set,
+as $(\Delta\text{row}, \Delta\text{col})$. To move from \texttt{I} to \texttt{N}
+is \emph{``one right, one down''}; the inverse is $(-1,-1)$. The sender \MAY{}
+transmit the single move, the pair, or --- as a last resort --- the whole
+substructure of the table.
+
+Permitted grid transformations are the standard four --- \emph{rotation,
+reflection, translation, enlargement} --- parameterised by $\theta$, with a full
+rotation $2\pi$. The search space is the area swept; \S\ref{sec:parity} bounds
+it.
+
+\subsection{XOR parity}
+\label{sec:xor}
+
+Verification across the trident uses \textbf{XOR}, on the ground that XOR
+\emph{remembers state}: it encodes the prior value into the result and is its
+own inverse. The corpus works the hex directly:
+\[
+\texttt{O} = \texttt{0x4F}, \qquad
+\texttt{B} = \texttt{0x42}, \qquad
+\texttt{I} = \texttt{0x49}.
+\]
+Where a slot survives unchanged, $v \oplus v = 0$ and the parity contributes
+nothing; where it differs, the parity carries the difference. \emph{``When you
+verify a message over XOR you get another message --- a parity message --- and
+the parity sequence gives you the result you need.''}
+
+Polar sign convention: a right-hand-side XOR preserves the byte; the negative
+operator is the left-hand-side reading of the same structure. The poles
+\emph{multiply} rather than add, because they are dimensional rather than
+scalar.
+
+% =====================================================================
+\section{\CISCO{} Order}
+\label{sec:cisco}
+
+\subsection{Definition}
+
+\CISCO{} denotes the corpus's bottom-up self-balancing tree discipline. It has
+nothing to do with the network vendor. A \CISCO{} tree is: self-balancing, and
+specifically a red-black tree \emph{that never needs pruning}; traversed
+$\text{root} \rightarrow \text{left} \rightarrow \text{right}$; parsed
+\emph{bottom-up} while the top-down model shares the same two poles at each
+step; and is the structure over which \OBI{} is held, with \texttt{O} at the
+root, \texttt{B} left, \texttt{I} right.
+
+The Riemann hypothesis is invoked in S3 as the intended means of deciding, from
+signal structure alone, whether a number was produced by bottom-up traversal.
+\emph{(Unresolved --- Appendix~\ref{app:open}, C.1.)}
+
+\subsection{Read / Write / Execute permutations}
+
+Three permissions generate six orderings:
+
+\begin{Verbatim}[fontsize=\small,frame=single]
+R W X        W R X        X R W
+R X W        W X R        X W R
+\end{Verbatim}
+
+The \emph{diagonals} are where a permission is shared between two positions ---
+\texttt{R R} on one, \texttt{W W} on the other. Those shared cells make the
+matrices composable: two matrices sharing a diagonal can be verified against
+each other. Octal permission tags follow POSIX and are carried on the wire:
+$r = 4$, $w = 2$, $x = 1$.
+
+\begin{errata}{Errata A.10}
+S5b states ``one would be easy to write.'' Under POSIX, $1$ is \emph{execute}
+and $2$ is \emph{write}.
+\end{errata}
+
+\subsection{The $2R \rightarrow 1W \rightarrow 1X$ ratio}
+\label{sec:ratio}
+
+\begin{align*}
+2 \;\text{reads} &\;\rightarrow\; 1 \;\text{write} \\
+2 \;\text{writes} &\;\rightarrow\; 1 \;\text{execute}
+\end{align*}
+
+One read alone is a write in progress; \emph{two} reads complete a write. A
+write is thus one \emph{implicit} filter plus one \emph{explicit} flash
+(\S\ref{sec:filterflash}). In frame terms: $512$ bytes per $2$ read operations
+$=$ $1$ execute operation.
+
+\subsection{Hops, and rotation instead of traversal}
+
+Moving between R, W and X costs \emph{hops}: minimum one, maximum two left hops
+to the execute root.
+
+\begin{ruleblock}
+\textbf{The two hops are not serial and are not to be walked.} The tree is
+\emph{rotated}: \emph{``you don't have to do the hops per se, you just have to
+do one context switch\dots{} you just change the angle of the message.''} Two
+hops become two rotations of the \CISCO{} tree; the message is unchanged, only
+the reader's frame moves.
+\end{ruleblock}
+
+Under rotation: my execute $\rightarrow$ your read; my read $\rightarrow$ your
+write; my write $\rightarrow$ your execute. The dimension is preserved because
+the flash was already sent --- only the angle changed. This is the same
+mechanism as \S\ref{sec:shift}, applied to the permission tree rather than the
+symbol grid.
+
+\subsection{Determinant sharing}
+\label{sec:det}
+
+Two $2\times3$ (or $3\times2$) permission matrices are reconciled by exchanging
+\emph{transposes}, not the matrices themselves, and computing a determinant
+relation over the pair. The worked figures: $R_w = [1,0,1]$, $R_r = [0,1,2]$,
+with transposes exchanged so the shared cells ($0$ and $1$) are visible to both
+parties without either disclosing its full matrix.
+
+\begin{errata}{Errata A.11}
+The determinant arithmetic in S2 is not recoverable --- the audio degrades into
+repeated self-correction and the stated products do not reconcile. The
+\emph{mechanism} (exchange transposes, verify via a determinant relation,
+disclose no full matrix) is clear and is what is normative. The specific figures
+are not.
+\end{errata}
+
+% =====================================================================
+\section{Channel Model}
+\label{sec:channels}
+
+\subsection{Roles}
+
+\begin{center}
+\begin{tabular}{@{}llp{7.6cm}@{}}
+\toprule
+\textbf{Ch} & \textbf{Role} & \textbf{Function} \\
+\midrule
+CH0 & Transmitter & encodes raw message into packet format; computes SHA-256
+  message hash; attaches r/w/x permission tag and order/chaos status \\
+CH1 & Receiver & deserialises the packet; decodes from the wire form \\
+CH2 & Verifier & brokers consensus; broadcasts the verdict \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The three roles map onto the only three verbs the system has ---
+\emph{receive, transmit, verify} --- in all six orderings. Channels \MUST{} be
+independently verifiable and \MAY{} be run independently. The isolation
+principle (\S\ref{sec:enzyme}) requires that CH2 cannot repair itself.
+
+\begin{errata}{Inconsistency}
+S5b describes the ring as ``channel 0 sender, channel 2 receiver, channel 3
+verifier'' in one passage and demonstrates \texttt{make ch0} / \texttt{make ch1}
+with a channel-2 verifier in another. This document normalises on
+CH0/CH1/CH2.
+\end{errata}
+
+\subsection{Ring topology and worked exchange}
+
+\begin{Verbatim}[fontsize=\small,frame=single]
+        CH1 (receiver)
+       /               \
+   CH0 ----------------- CH2
+ (sender)            (verifier)
+
+CH0 ->  "Hello. I am here for food."
+CH1 ->  "Yes. Here is your food."
+CH2 ->  "Verified."
+\end{Verbatim}
+
+\subsection{Observed failure modes}
+\label{sec:failures}
+
+The S5b demonstration produced three failures. All are \emph{specified
+behaviour} and \MUST{} be reported rather than masked.
+
+\begin{center}
+\begin{tabular}{@{}lp{10.2cm}@{}}
+\toprule
+\textbf{Failure} & \textbf{Meaning} \\
+\midrule
+\texttt{hash mismatch} & SHA-256 digest of received frame $\neq$ transmitted
+  digest. The message may still be legible; the frame is not verified. \\
+\texttt{consensus failed} & CH2 could not reach a verdict from two of three.
+  The system \MUSTNOT{} exit; it holds. \\
+\texttt{phantom ID} & An identifier appeared on the ring with no originating
+  channel. Not fatal --- observed, not acted on. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+In the demonstration the message \emph{arrived and was legible} while the hash
+failed. That is the intended separation: legibility and verification are
+different verdicts.
+
+\subsection{RGB tomographic state}
+\label{sec:rgb}
+
+Channel state is carried as an RGB triple whose components are \emph{pointers to
+state}, not colours:
+
+\begin{center}
+\begin{tabular}{@{}lp{10.0cm}@{}}
+\toprule
+\textbf{Red} & \textbf{drift.} A drifting party appears more red. Two reds
+  (light/dark) are distinguished by hue, saturation, lightness. \\
+\textbf{Green} & \textbf{verified.} Green is the consistency check. A message is
+  \emph{not green until it is sent and verified}. \\
+\textbf{Blue} & \textbf{neutral / character state.} The observing state ---
+  neither drifted nor verified. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The three parties share the \emph{dimension} (hue), not the value. Agreement is
+the qualification between two reds; green is the anchor state measurable by a
+third party. The corpus frames this explicitly as \textbf{zero-knowledge}: the
+verifier confirms agreement without holding either party's value. Grey/brown is
+the decayed state --- information loss, measured by ratio over the shared
+$\pi$-frequency.
+
+\subsection{Consensus and channel eviction}
+
+Where a channel becomes hostile or is captured, the remaining channels
+\emph{vote it out}. The worked case: \texttt{A4}, \texttt{B4}, \texttt{C4}
+observe that \texttt{D3} lied to \texttt{B4}; the three vote, \texttt{D3} is
+crossed out, and connections are killed until the real-world cause is
+established. Eviction \MUST{} be by consensus, never unilateral; \MUST{} be
+reversible on re-establishment of cause; and \SHOULD{} use XOR over the open
+channel (\S\ref{sec:xor}).
+
+\subsection{Actors}
+
+\textbf{Obi} --- heart, soul; king or leader. The \emph{local observer}: sees
+the system from the inside out, observes tomographically, and is \emph{not
+directly involved in the command and control}. \textbf{Uche} --- knowledge. The
+\emph{acting party}. Each can create and destroy the other. Neither is the
+verifier of itself.
+
+% =====================================================================
+\section{Signal Model}
+
+\subsection{The noise/signal quadrants}
+\label{sec:quadrants}
+
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+ & \textbf{signal} & \textbf{no signal} \\
+\midrule
+\textbf{noise}    & noise $+$ signal    & noise, no signal \\
+\textbf{no noise} & no noise $+$ signal & \textbf{no noise, no signal} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{itemize}[leftmargin=*,noitemsep]
+  \item \textbf{no noise, no signal} --- the system is on, potential,
+    quiescent. \emph{Not} off.
+  \item \textbf{no noise $+$ signal} --- clean channel; connection may be
+    established.
+  \item \textbf{noise $+$ signal} --- live and degraded; the working case.
+  \item \textbf{noise, no signal} --- losing connection, or drifting out of
+    detection.
+\end{itemize}
+
+Machine states map on: \emph{on}, \emph{standby}, \emph{hibernate} (regulating
+resources), \emph{sleep} (off for a short time).
+
+\subsection{Your noise is my signal}
+
+\begin{ruleblock}
+\emph{``Your noise is my signal.''} An adversary jamming a band is emitting
+structure, and that structure is information about the adversary. A receiver
+\SHOULD{} treat detected jamming as a signal source, not only as degradation.
+\end{ruleblock}
+
+Consequently, \textbf{a complete system is one that knows it can be jammed}:
+\emph{``a system that can be jammed knows it can be jammed --- so it can be
+anti-jammed.''} Self-knowledge of the failure mode is a completeness criterion.
+
+\subsection{The maybe lattice}
+
+The two binaries of \S\ref{sec:quadrants} cross with the
+\emph{maybe} / \emph{maybe-not} operator to give a $4 \times 4$ state lattice.
+\textbf{maybe-not} is a \emph{nullifying} operator: it nullifies a state in
+order to verify it --- ``check for noise; test for no noise.'' It is the
+interrogative form of the state, which makes the lattice a calibration procedure
+rather than a classification.
+
+\emph{Balloon model.} Each channel is a balloon that inflates and deflates.
+Inflation is signal emerging from noise; deflation is signal collapsing into
+noise. Three balloons --- maybe, maybe-not, and the popped/ground case --- give
+the trident its physical reading.
+
+\begin{errata}{Errata A.9}
+The worked figure in S4b, $2^{-1} \times 3 = -0.1$, does not reconcile:
+$2^{-1}\times 3 = 1.5$ and $(-2)^{-1}\times 3 = -1.5$. The intended quantity is
+not recoverable.
+\end{errata}
+
+\subsection{\textsc{ox-star} and \textsc{noise-star}}
+\label{sec:oxstar}
+
+\textbf{\textsc{ox-star}} (auxiliary star) is the on-the-fly injection
+mechanism: a sequence that turns a system on, off, or into a new mode
+\emph{while it is running}, without a human at the location. The canonical
+sequence is the Konami code:
+\[
+\uparrow\;\uparrow\;\downarrow\;\downarrow\;\leftarrow\;\rightarrow\;\leftarrow\;\rightarrow\;\texttt{B}\;\texttt{A}\;\texttt{START}
+\]
+
+This is not decoration. The corpus's reading is precise and is the protocol's
+own send-rule:
+
+\begin{itemize}[leftmargin=*,noitemsep]
+  \item $\uparrow$ once is \emph{half} the instruction --- held, not sent.
+  \item $\uparrow\uparrow$ is the complete instruction --- \textbf{sent}.
+    Likewise $\downarrow\downarrow$, $\leftarrow\rightarrow$.
+  \item \texttt{B A} are the bounded terminals --- a stop-and-place.
+  \item \texttt{START} commits; \texttt{SELECT} requests more options.
+\end{itemize}
+
+This is the \emph{half the structure, double the send} rule
+(\S\ref{sec:duality}) made concrete: an \textsc{ox-star} is a scalar tensor that
+takes half a dimension up, so each instruction is pressed twice to be sent once.
+
+\textbf{\textsc{noise-star}} is the complementary state family ---
+\texttt{ox-noise}, \texttt{ox-no-noise}, \texttt{ox-signal},
+\texttt{ox-no-signal} --- carrying the \S\ref{sec:quadrants} quadrant into the
+injection layer, so an injected command knows the standby state of the system it
+is entering. Stated applications: guiding a drone in real time; disarming a
+system mid-flight; switching a running program's mode without unloading it.
+
+\subsection{Probing}
+\label{sec:probe}
+
+\textbf{Processing} is executing what the system already knows how to do.
+\textbf{Probing} is the system seeking a \emph{new} solution structure for the
+same problem. A probe \MUSTNOT{} be logged as a process.
+
+\begin{align*}
+\text{external probe:}&\quad P(\text{state}) \rightarrow \text{data} \\
+\text{internal probe:}&\quad P(\text{data}) \rightarrow \text{state}
+\end{align*}
+
+A probe asks the five interrogatives --- \emph{who, what, when, where, why} ---
+and does so \textbf{without a human in the loop}. The corpus distinguishes
+\emph{human in the loop}, \emph{human on the loop} and \emph{human out of the
+loop}; probing is out-of-loop by construction.
+
+Probe health is a scalar in $[0,1]$ on each node. A structurally healthy node
+probes for more inputs; a degraded node probes for more statements. This makes
+protocol functions \emph{dynamic} --- able to resolve ambiguity by
+interpretation. The minimal case --- \emph{``I am Python.'' ``No, I am
+Python.'' Who is right?} --- is the ambiguity a probe exists to settle.
+
+% =====================================================================
+\section{Here-and-Now, There-and-Then, Where-and-Whenever}
+\label{sec:addressing}
+
+\subsection{The temporal-spatial matrix}
+
+The protocol addresses place and time as a $2 \times 3$ matrix over three modes
+(S4a, S5; triad ratified by the author 25 August 2026). The canonical statement:
+
+\begin{ruleblock}
+\begin{center}
+\textbf{here and now \quad--\quad there and then \quad--\quad where and whenever}
+\end{center}
+\end{ruleblock}
+
+Each mode names a \emph{degree of binding}, and each has two orderings --- space
+first, or time first --- which is what makes the matrix $2 \times 3$ rather than
+a list of three.
+
+\begin{center}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{2.5cm}>{\raggedright\arraybackslash}p{2.0cm}>{\raggedright\arraybackslash}p{2.2cm}>{\raggedright\arraybackslash}p{3.6cm}>{\raggedright\arraybackslash}p{3.6cm}@{}}
+\toprule
+\textbf{Mode} & \textbf{Binding} & \textbf{Invariant} & \textbf{space first} & \textbf{time first} \\
+\midrule
+\textsc{here and now} & both bound, \emph{deictic} & never a toy &
+  \emph{here and now} --- present in space, then time &
+  \emph{now and here} --- present in time, then space \\[2pt]
+\textsc{there and then} & both bound, \emph{displaced} & never a weapon &
+  \emph{there and then} --- there in space, then in time &
+  \emph{then and there} --- there in time, then in space \\[2pt]
+\textsc{where and whenever} & both \emph{unbound} & never a problem &
+  \emph{where and whenever} --- in space, for all time &
+  \emph{whenever and where} --- in time, for all space \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Each mode carries exactly one of the Three Nevers (\S\ref{sec:nevers}). The
+invariants are not a separate governance layer --- they are the conformance
+conditions on the addressing modes.
+
+Each cell is a \emph{dimensionless quantity} occurring on \emph{one axis only}
+--- one place and one time at a time. The corpus likens the arrangement to a
+gimbal, and to latitude/longitude, and states both orderings of the first mode
+explicitly: \emph{``I need food here and now, or now and here.''}
+
+\subsection{The binding progression}
+
+The three modes are not three locations. They are three \emph{quantifier states}
+over the same pair of dimensions.
+
+\begin{enumerate}[leftmargin=*]
+  \item \textsc{here and now} --- place $=$ \emph{this}, time $=$ \emph{this}.
+    Both anchored to the speaker. The corpus gives this mode a \textbf{loopback
+    address}, so a system can address its own present.
+  \item \textsc{there and then} --- place $=$ \emph{that}, time $=$ \emph{that}.
+    Displaced, but still \emph{specified}: a particular elsewhere, a particular
+    past or future.
+  \item \textsc{where and whenever} --- place and time are \emph{quantified},
+    not specified. This is the \textbf{interrogative} mode: \emph{where} and
+    \emph{when} are interrogative pronouns, and \emph{whenever} is their
+    free-choice form. The claim is open, and resolves at whatever place and time
+    the need arises.
+\end{enumerate}
+
+The third mode is where \textbf{probing} lives (\S\ref{sec:probe}). A probe asks
+\emph{who, what, when, where, why} --- and the two dimensions it quantifies over
+are exactly the two this mode leaves unbound.
+
+\subsection{Stillness}
+\label{sec:stillness}
+
+\textbf{Stillness} is not a fourth mode. It is the \emph{property} the unbound
+mode has: the state in which a claim persists without further action ---
+\emph{``you don't need anything to be still.''} The demonstration is the cup: a
+drink set down out of frame, still there when you return, returnable to
+indefinitely.
+
+\begin{ruleblock}
+\textbf{Normative consequence.} A claim entered under \textsc{where and
+whenever} \MUSTNOT{} expire, and \MUSTNOT{} be discharged by the passing of a
+specific place or time. \emph{``I need food at this address at 18:00 Tuesday''}
+is a bound claim and can be missed. \emph{``I need food''} --- unbound --- is a
+\textbf{standing claim}: honoured wherever the claimant is and whenever the need
+arises. Food ordered under stillness arrives when it is needed, not when it was
+asked for.
+\end{ruleblock}
+
+This is what makes a duty-holder unable to discharge an obligation by pointing
+at a missed slot, and it is precisely the content of this mode's invariant,
+\emph{\textbf{never a problem}} (\S\ref{sec:nevers}): an unbound claim cannot
+time out into nothing, because it has no slot to miss and therefore accrues no
+debt. It is not failing; it is unresolved.
+
+Its one failure mode is \textbf{relaxation} --- a standing claim that quietly
+stops being honoured --- which is why relaxation is specified as a \emph{failure}
+and not as an \emph{expiry}. Relaxation is the only way the unbound mode can
+become a problem, and is therefore the only thing this invariant has to guard.
+
+\subsection{Structural note}
+
+Three modes $\times$ two orderings $=$ \textbf{six cells}, matching the $3+3$
+dimensional count (three axes forward, three back) and the six R/W/X
+permutations of \S\ref{sec:cisco}. Whether these three sixes are the same six,
+or a coincidence of structure, is left open
+(Appendix~\ref{app:open}, C.8).
+
+\subsection{Parity}
+\label{sec:parity}
+
+Parity is a \emph{dimension}, not a predicate:
+\[
+x \bmod 2 = 0 \;\Rightarrow\; \text{even}, \qquad
+x \bmod 2 = 1 \;\Rightarrow\; \text{odd}.
+\]
+A parity check runs on \emph{one axis} and determines the even/odd ratio for
+that axis. A negative quantity ($-2$) is not merely a sign: the minus is an
+\emph{operator on the negative axis}, under which ordinary parity rules bend.
+Encoding \MUST{} therefore be checkable for bit-flip pairs on both poles. Where
+the rules bend, the transformation set of \S\ref{sec:shift} applies --- and the
+edge cases where the rules break are precisely what the stateless protocol must
+encode, so that statelessness survives them.
+
+\subsection{The holding problem}
+\label{sec:holding}
+
+A system that computes an intermediate result \emph{holds it in memory}, and
+holding is the cost. Worked as a matrix product: the intermediate outer-product
+table is what the system is forced to hold, when what it wants is the row sums.
+
+\begin{ruleblock}
+\textbf{Goal.} Look up the result from a tabulation constructed by polar rules,
+rather than compute-and-hold.
+\end{ruleblock}
+
+\begin{errata}{Errata A.6}
+The intermediate table stated in S6 --- rows $(6,10)$, $(12,15)$, $(16,20)$
+with row sums $16, 27, 36$ --- is \emph{not} a consistent outer product of any
+single vector pair. For $u = (2,3,4)$ and $v = (3,5)$ the correct outer product
+is rows $(6,10)$, $(9,15)$, $(12,20)$ with row sums $16, 24, 32$. The
+\emph{intent} --- memoise intermediates so the result is a lookup, not a
+computation --- is sound and is what is normative.
+\end{errata}
+
+\textbf{Gravity well / rope and bucket.} A well has a depth (density); a rope
+holds a bucket; the rope \MUST{} hold indefinitely. \emph{``Nothing likes to
+hold anything.''} Indefinite holding must therefore be \emph{structural}, not
+effortful --- encoded into the geometry, not maintained by a process.
+
+\subsection{\LAPIS{} --- polar quadrants}
+\label{sec:lapis}
+
+\LAPIS{} is the corpus's polar-calculus mnemonic for the four cardinal bearings.
+As given in S2: $\pi/4 = $ north, $\pi/3 = $ east, $\pi/2 = $ south, $\pi = $
+west.
+
+\begin{errata}{Errata A.5}
+This mapping is not consistent with standard polar convention, and is not
+internally consistent either --- $\pi/4$ and $\pi/3$ are $45^\circ$ and
+$60^\circ$, which are not cardinal. Under the convention the corpus itself
+invokes (``the sun rises in the east and sets in the west''), the cardinal
+bearings are
+\[
+0 = \text{east}, \quad \pi/2 = \text{north}, \quad
+\pi = \text{west}, \quad 3\pi/2 = \text{south}.
+\]
+The \emph{intent} --- four quadrants addressed by angle, with a message choosing
+its bearing $\theta$ before it moves --- is preserved. Only the constants are
+wrong. Implementations \MUST{} use the standard convention.
+\end{errata}
+
+The associated rule is real and independent of the constants: \emph{determine
+the angle you want to move before you move}, and $\theta$ (rotation) and
+$\lambda$ (power distribution) are chosen together.
+
+\subsection{The $i$-cycle and the trident mismatch}
+\label{sec:icycle}
+
+S6 develops a rotation table over the imaginary unit:
+\[
+i^{1} = i, \quad i^{2} = -1, \quad i^{3} = -i, \quad i^{4} = 1
+\qquad \text{(period 4)}
+\]
+
+\begin{errata}{Errata A.7 --- and a proposed correction}
+A period-\emph{4} cycle is a poor algebraic fit for a \emph{trident}. The
+natural object for a three-axis rotation is the cube roots of unity:
+\[
+\omega = e^{2\pi i/3}, \qquad \omega^{3} = 1, \qquad 1 + \omega + \omega^{2} = 0.
+\]
+The identity $1 + \omega + \omega^{2} = 0$ is exactly the property a trident
+wants: three readings summing to nothing when the message is intact, and to a
+non-zero residue when it is not. That is a parity check for free, on three axes
+--- which is what \S\ref{sec:xor} reaches for with XOR. Offered as an
+improvement, not as a transcription of the corpus.
+\end{errata}
+
+\subsection{Dimensional principality}
+
+\begin{ruleblock}
+\textbf{Axiom.} Dimensions have principles they obey without being told. A
+system \MUSTNOT{} need to be given time to think in order to respect them ---
+the rules are implicit and hold structurally.
+\end{ruleblock}
+
+Non-linearity follows: \emph{any structure that can be computed by looking at it
+must be isomorphic under transposition}. The transpose is an \emph{axis of
+reflection} --- $XYZ \rightarrow ZYX$ --- under which a row vector becomes a
+column vector and the data structure is preserved while the system moves.
+
+The $3+3$ count: three axes forward ($x,y,z$) and three back ($-x,-y,-z$),
+because what is behind you is real whether or not you can see it. The corpus
+demonstrates this with a mirror: the cup out of frame is still there.
+
+\begin{errata}{Errata A.8}
+S6 states $3 + 6 + 9 = 15$ and derives a ``minimum consensus'' from it:
+$3+6+9 = 18$. It also states $3^{3} = 9$: in fact $3^{2} = 9$ and $3^{3} = 27$.
+$6 \times 9 = 54$ is correct as stated.
+\end{errata}
+
+% =====================================================================
+\section{Codec and File Formats}
+\label{sec:codec}
+
+\subsection{\texttt{.nsigii} --- symbolic expression of intent}
+
+The protocol's file format is a \emph{symbolic expression of intent} file:
+
+\begin{itemize}[leftmargin=*,noitemsep]
+  \item It holds space \emph{indefinitely} --- once a point is allocated the
+    program holds it. It cannot be removed, only \emph{reallocated}.
+  \item It is \emph{stateless but remembering}. Statelessness here does not mean
+    ``does not remember''; it means the state is encoded into the \emph{geometry}
+    of the system rather than held in a variable. \emph{``It remembers stuff, it
+    doesn't need to forget, ever.''}
+  \item New symbol sets can be added as language evolves, without invalidating
+    existing files.
+\end{itemize}
+
+\subsection{Linkable-then-executable coding}
+
+The \NSIGII{} codec is \textbf{LTE-coding --- linkable \emph{then} executable}.
+The demonstrated pipeline:
+
+\begin{Verbatim}[fontsize=\small,frame=single]
+cat image.png | go run main.go   ->  raw, linkable, stateless encoding
+\end{Verbatim}
+
+The codec takes \emph{any} input format and produces a raw encoding that
+\emph{``can never die''} --- it survives re-encoding. The output is
+\emph{linkable as a library} and \emph{executable on demand}: a DLL, or a
+\emph{macro system for other systems}, not a direct call. It encodes the
+\emph{buffering}, which is the point --- a conventional stream buffers before it
+plays; \NSIGII{} encodes the buffer so the receiver already holds the state.
+
+Stated repositories: \texttt{github.com/obinexus/nuko-operating-system}
+(\textsc{nuko-os}, the human-rights operating system) and
+\texttt{github.com/obinexus/legislation}.
+
+\subsection{Marshalling}
+\label{sec:marshal}
+
+Marshalling is the codec's serialisation contract, explicitly compared to
+Python's \texttt{pickle}:
+
+\begin{ruleblock}
+A receiver holding the \emph{codec of the function} can reconstitute an object
+it did not construct, because it knows the \emph{shape} of the function without
+computing it.
+\end{ruleblock}
+
+Marshalling is a \textbf{flash} operation (\S\ref{sec:filterflash}). Comparable
+wire formats named in the corpus: Protocol Buffers, gRPC, JSON, and a binary IR.
+\NSIGII{} is schema-based like these, which is what \S\ref{sec:repair}'s
+schema-verification requires.
+
+% =====================================================================
+\section{Dimensional Classifiers --- the Natural Language Layer}
+\label{sec:lang}
+
+\subsection{Statement / Expression / Intent}
+
+Three poles, likened to latitude, longitude and altitude:
+
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Pole} & \textbf{Carries} & \textbf{Truth-apt?} \\
+\midrule
+Statement  & the assertion                   & yes --- true or false \\
+Expression & the meaning of the assertion    & no --- it means \\
+Intent     & the abstract model behind it    & no --- it aims \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The bipolar question of an expression is \emph{``what could this mean?''} --- and
+that is where a natural-language codec must operate. The worked pair
+\emph{John likes Mary} / \emph{Mary likes John} are two statements over one
+relation, whose conjunction is positive or negative by pole. The corpus reaches
+for the discriminant $b^{2} - 4ac$ as the object deciding how many resolutions
+such a relation has. \emph{(Unresolved --- Appendix~\ref{app:open}, C.3.)}
+
+\subsection{Verb--noun construction}
+\label{sec:verbnoun}
+
+Following Igbo construction, the instruction unit is a \textbf{verb--noun pair}.
+A \emph{verb} describes an action (``to'' $+$ action); an \emph{adverb}
+describes the verb and situates it in past, present or future; a \emph{noun} is
+the classifier of the thing --- and a \emph{person} is only one category of
+noun. The corpus is deliberate here: nouns include animals and things, so intent
+can be read from non-human experience.
+
+\subsection{The four sentence types}
+
+\begin{center}
+\begin{tabular}{@{}llp{5.6cm}@{}}
+\toprule
+\textbf{Type} & \textbf{Example} & \textbf{Protocol role} \\
+\midrule
+Declarative   & \emph{I am Nnamdi.} & assertion --- carries a statement \\
+Interrogative & \emph{Can you introduce yourself?} & \textbf{probe} (\S\ref{sec:probe}) --- requests input \\
+Imperative    & \emph{Close the door.} & \textbf{command} --- carries control \\
+Exclamative   & \emph{What a funny thing he told us!} & unexpected-state marker \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Crossed with four sentence structures: short/simple; simple (personal);
+compound (one dependent $+$ one independent clause); complex (two independent
+$+$ one dependent); compound-complex. The corpus draws a \textsc{cisc}/\textsc{risc}
+analogy across the classifiers: the reduced and complex sets operate on
+different instruction models, but a receiver must resolve intent from either.
+
+\subsection{Clauses as control flow, and the \texttt{then} marker}
+\label{sec:then}
+
+\begin{Verbatim}[fontsize=\small,frame=single]
+do  ->  while           do { x++ } while (x <= 25)
+do  ->  then  ->  while do { x++ } then LABEL while (...)
+if  ->  then  ->  else  ->  then  ->  if
+\end{Verbatim}
+
+\begin{ruleblock}
+The \texttt{then} keyword \textbf{labels code blocks}, and labelled blocks are
+what a \texttt{goto} targets --- so \texttt{then} is a \textbf{switchable goto
+marker}.
+\end{ruleblock}
+
+\texttt{then} is part of the language construct. It \MUSTNOT{} be switched out
+or broken by a consuming implementation; a language that cannot express it
+cannot interpret \NSIGII{} clauses. The stated implementation target is
+\textbf{gosilang}.
+
+Traversal order matters and is carried: pre-order (\texttt{++x}) and post-order
+(\texttt{x++}) produce different ranges over the same loop, and the difference
+is an \emph{execution-order} property of the clause, not an idiom.
+
+% =====================================================================
+\section{Sizing and Timing Model}
+
+\subsection{Frame budget}
+\label{sec:budget}
+
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Quantity} & \textbf{Value} \\
+\midrule
+Frame & 512 bytes ($8^{3}$) \\
+Trident & 1536 bytes ($512 \times 3$) \\
+Half-frame & 256 bytes \\
+Pre-allocation & 2048 bytes ($512 \times 4$) \\
+Allocation quantum & 4 bytes \\
+Digest & 32 bytes (SHA-256) \\
+Payload after digest & 480 bytes \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Memory \MUST{} be allocated ahead of time, in 4-byte sequences --- \emph{per}
+four bytes, not \emph{over} four bytes. The allocation is a grid, and the grid
+is what is searched for meaning.
+
+\begin{errata}{Errata A.1 --- the trident split}
+$512/3 = 170.\overline{6}$, not an integer: the trident split of a 512-byte
+frame across three axes does \emph{not} divide evenly. Implementations \MUST{}
+choose one of:
+\begin{itemize}[leftmargin=*,noitemsep]
+  \item a \textbf{510-byte payload} split $170/170/170$, with 2 bytes reserved
+    for parity --- preserving the corpus's $170 = \texttt{0b10101010}$
+    alternating pattern, which is itself load-bearing (\S\ref{sec:index});
+    \textbf{or}
+  \item an uneven split $171/171/170$.
+\end{itemize}
+The first is recommended: $170 = \texttt{10101010}_2$ is the alternating index
+pattern the addressing model already uses, and the 2-byte remainder gives the
+XOR parity of \S\ref{sec:xor} somewhere to live.
+\end{errata}
+
+\subsection{Space--time duality}
+\label{sec:duality}
+
+\[
+\text{half the space} \;\longleftrightarrow\; \text{double the time},
+\qquad
+\text{double the space} \;\longleftrightarrow\; \text{half the time}
+\]
+
+A message may be halved and sent over twice the interval, or doubled and sent in
+half. \textbf{The worst case is the time case} --- the corpus optimises for
+bounded latency, not bounded memory. The spring model gives the mechanism: a
+message is \emph{pushed} and \emph{returns}, and the return is what verifies it.
+This is why the $3\rightarrow2$ mapping works: the third packet is the spring's
+return path.
+
+\subsection{Bit-rate derivation}
+
+\begin{errata}{Errata A.4 --- corrected derivation}
+S2 states ``2 seconds $=$ 6,000 milliseconds'' and derives
+$6000/1024 = 5.859375 \rightarrow 5.86$. The division is arithmetically correct;
+the \emph{input} is not. $2$ seconds $=$ \textbf{2,000\,ms}, not 6,000 --- the
+transcript applies a seconds-to-minutes factor of 60 where none belongs.
+Corrected, for a 512-byte frame over a 2-second window:
+\begin{align*}
+\text{throughput} &= 512\,\text{B} / 2\,\text{s} = 256\,\text{B/s} = 2{,}048\,\text{bit/s} \\
+\text{doubled frame} &= 1{,}024\,\text{B} \\
+\text{per-unit interval} &= 2{,}000\,\text{ms} / 1{,}024 = 1.953125\,\text{ms} \\
+\text{two-unit interval} &= 3.90625\,\text{ms}
+\end{align*}
+S2's later figure of $51.72$\,ms derives from $25.86 \times 2$, where $5.86$ was
+transcribed as $25.86$. Neither figure survives the corrected input.
+\end{errata}
+
+\subsection{Spring and damping}
+
+Springs model \emph{storing and absorbing} energy --- a message pushed against
+resistance stores what it will need to return.
+
+\begin{center}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{6.4cm}>{\raggedright\arraybackslash}p{7.6cm}@{}}
+\toprule
+\textbf{Spring failure} & \textbf{Protocol analogue} \\
+\midrule
+fatigue --- repeated cycles grow microscopic cracks & accumulated retransmission degrades the channel \\
+overload --- permanent deformation or breakage & a frame beyond budget does not recover \\
+corrosion --- environmental degradation over time & schema drift \\
+relaxation --- loss of tension over time & a stillness claim that stops being honoured \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{errata}{Errata A.12 (unresolved)}
+A damping factor of $2.85$ is stated in S3, attributed to ``Roth theory,
+clustering, nearest neighbour.'' A damping \emph{ratio} $\zeta = 2.85$ is
+heavily overdamped ($\zeta = 1$ is critical). Neither ``Roth theory'' nor the
+relation of $2.85$ to the clustering/nearest-neighbour method is recoverable
+from the transcript. Flagged for the author.
+\end{errata}
+
+% =====================================================================
+\section{Governance and Enforcement Layer}
+
+\subsection{The pointer problem}
+
+\begin{ruleblock}
+\textbf{Breathing and living are pointers that \MUST{} hold in all contexts.
+Work is optional.}
+\end{ruleblock}
+
+A pointer that must not be null is the thing a system is built to guarantee. If
+the breathing pointer drifts, someone is dying. If the living pointer drifts,
+someone is not living. Work is a pointer that \MAY{} be null --- and a system
+that forces work by dereferencing it anyway \emph{``causes fatigue and
+confusion.''}
+
+\NSIGII{} is therefore a \textbf{human-rights broker}, not a work broker. It
+holds the demographic state, and it holds \emph{negative space for work} ---
+because work becomes possible when space and time are already held.
+
+\subsection{Litigation as enforcement}
+\label{sec:litigation}
+
+S5b develops the enforcement mechanism concretely: \NSIGII{} composes a
+verified, timestamped, hash-anchored record of a request for food, water or
+shelter, and of the duty-holder's response or non-response. The record is
+transmitted by ordinary means --- the corpus demonstrates it over SMTP --- and
+is intended to be usable as evidence that a statutory duty was engaged and not
+discharged.
+
+Statutes named as the intended encoding targets (UK): Care Act 2014 (and the
+Health and Social Care Act 2012); Children Act 1989, ss.~17, 21, 23C
+(accommodation; care leavers); Housing Act; Equality Act 2010. The stated design
+goal is that a person can assert an entitlement \emph{without first knowing the
+statute}, because the protocol encodes which duty a given request engages.
+
+\begin{errata}{Note}
+This specification describes an evidentiary and record-keeping mechanism.
+Whether a given record supports a given claim is a question of law and of the
+specific facts, and needs a qualified solicitor --- a protocol cannot supply
+that, and this document does not.
+\end{errata}
+
+\subsection{Reconciliation of ``never a weapon''}
+\label{sec:reconcile}
+
+The mode pairing of \S\ref{sec:nevers} resolves the tension by giving it a
+locus. ``Never a weapon'' is the invariant of \textsc{there and then} --- the
+displaced mode, where all of the protocol's reach across space and time lives.
+
+\begin{ruleblock}
+\textbf{``Never a weapon'' scopes to the protocol's own reach.} \NSIGII{}
+\MUSTNOT{} be constructible into an instrument that acts at a distance to harm
+--- it cannot be turned against its user, cannot surveil them, cannot deny them.
+Its \textsc{ox-star} injection, remote command and mid-flight control
+capabilities (\S\ref{sec:oxstar}) are all there-and-then operations and all fall
+under this prohibition.
+
+It does \emph{not} scope to the actions a claimant takes with the record the
+protocol produces. A person using their own verified record to enforce their own
+statutory entitlement is acting in \textsc{here and now}, under the invariant
+\emph{never a toy} --- a requirement that the matter be treated as serious, not
+a prohibition on acting. That is the protocol working, not the protocol
+weaponised.
+\end{ruleblock}
+
+The two are separable because they are invariants of \emph{different modes}. The
+protocol's reach is constrained; the claimant's presence is not.
+
+\emph{Ratified in structure by the author's mode/never pairing (25 August 2026);
+the wording above remains open to refinement.}
+
+% =====================================================================
+\section{Conformance}
+
+An implementation conforms to \NSIGII{} 0.3 if it:
+
+\begin{enumerate}[leftmargin=*,noitemsep]
+  \item Implements all six operators of \S\ref{sec:ops}, or declares which half
+    of a pair is structurally impossible and why.
+  \item Carries an \texttt{ORDER}/\texttt{CHAOS} status on every channel and
+    treats \texttt{CHAOS} as an observable rather than a fault.
+  \item Isolates the verifier such that it cannot repair itself.
+  \item Maintains the 2-filter-to-1-flash ratio.
+  \item Emits trident packets of the frame geometry in \S\ref{sec:frame} and
+    \S\ref{sec:budget}, with the $512/3$ split resolved per Errata A.1.
+  \item Addresses slots by index pair and repairs index-first.
+  \item Distinguishes substitution, $\epsilon$ and $\theta$, applying the
+    matching operator to each.
+  \item Reaches a verdict from any two of three readings and never requires all
+    three.
+  \item Verifies the \emph{schema}, not the payload.
+  \item Implements CH0/CH1/CH2 as independently runnable, and reports
+    \texttt{hash mismatch}, \texttt{consensus failed} and
+    \texttt{phantom ID} rather than masking them.
+  \item Holds --- does not exit --- on consensus failure.
+  \item Requires consensus of remaining channels for eviction.
+  \item Never mistakes \emph{no noise, no signal} for \emph{off}.
+  \item Logs probes distinctly from processes.
+  \item Addresses every claim in one of the three modes of
+    \S\ref{sec:addressing}, and \textbf{never expires a claim entered under}
+    \textsc{where and whenever} (\S\ref{sec:stillness}).
+  \item Allocates memory ahead of time in 4-byte quanta.
+  \item Satisfies the Three Nevers of \S\ref{sec:nevers} \textbf{as mode
+    invariants} --- \emph{never a toy} on \textsc{here and now}, \emph{never a
+    weapon} on \textsc{there and then}, \emph{never a problem} on \textsc{where
+    and whenever} --- and does not treat them as a separate governance layer.
+\end{enumerate}
+
+% =====================================================================
+\appendix
+\section{Arithmetic Errata}
+\label{app:errata}
+
+Every numeric claim in the corpus, checked. \emph{Stated} is what the transcript
+says; \emph{Correct} is the computed value; the disposition preserves the
+intent.
+
+{\small
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.6cm}>{\raggedright\arraybackslash}p{2.6cm}>{\raggedright\arraybackslash}p{2.9cm}>{\raggedright\arraybackslash}p{2.9cm}>{\raggedright\arraybackslash}p{5.1cm}@{}}
+\toprule
+\textbf{\#} & \textbf{Claim} & \textbf{Stated} & \textbf{Correct} & \textbf{Disposition} \\
+\midrule
+\endhead
+A.1 & Trident split of a frame & $512/3$ treated as clean & $170.\overline{6}$ --- does not divide & 510-byte payload $170/170/170$ $+$ 2 parity bytes; $170 = \texttt{0b10101010}$ preserved \\
+A.2 & Frame size & $8^{3} = 512$ & $512$ \checkmark & Correct as stated \\
+A.3 & Latin index space & $15{,}625 = 25^{3}$ & $26^{3} = 17{,}576$ & Off-by-one: max index 25 used as base instead of symbol count 26 \\
+A.4 & Milliseconds in 2\,s & $6{,}000$\,ms & $2{,}000$\,ms & Seconds$\rightarrow$minutes factor of 60 wrongly applied \\
+A.4b & Derived interval & $5.86 \rightarrow 51.72$\,ms & $1.953125$\,ms; $\times 2 = 3.90625$\,ms & $51.72$ comes from $25.86\times2$; $5.86$ mis-transcribed as $25.86$ \\
+A.5 & \LAPIS{} bearings & $\pi/4$\,N, $\pi/3$\,E, $\pi/2$\,S, $\pi$\,W & $0$\,E, $\pi/2$\,N, $\pi$\,W, $3\pi/2$\,S & Not internally consistent; intent (bearing chosen before movement) preserved \\
+A.6 & Outer-product table & rows $(6,10)$, $(12,15)$, $(16,20)$; sums $16$, $27$, $36$ & for $(2,3,4)\otimes(3,5)$: rows $(6,10)$, $(9,15)$, $(12,20)$; sums $16$, $24$, $32$ & Stated table is not a consistent outer product; memoisation intent sound \\
+A.7 & Rotation cycle & $i,-1,-i,1$ (period 4) & correct for $i$, but a trident wants period 3 & Use $\omega = e^{2\pi i/3}$; $1+\omega+\omega^{2}=0$ gives a 3-axis parity check \\
+A.8 & Consensus minimum & $3+6+9=15$; $3^{3}=9$ & $3+6+9=18$; $3^{2}=9$, $3^{3}=27$; $6\times9=54$ \checkmark & Two slips; the 54 is right \\
+A.9 & Probe scalar & $2^{-1}\times3 = -0.1$ & $1.5$; or $-1.5$ for $(-2)^{-1}$ & Not recoverable --- flagged \\
+A.10 & POSIX octals & ``1 would be easy to write'' & $r{=}4$, $w{=}2$, $x{=}1$ & $1$ is execute, $2$ is write \\
+A.11 & Determinant exchange & figures do not reconcile & --- & Mechanism normative; figures are not \\
+A.12 & Damping factor & $2.85$, ``Roth theory'' & --- & $\zeta = 2.85$ heavily overdamped; attribution unrecoverable \\
+A.13 & Suffering equation & $\Sigma = (N-R)\times K$ & needs clamping, finite $K$ & As stated, $R \geq N$ gives $\Sigma \leq 0$; $N = R$ with $K\to\infty$ is $0\times\infty$ \\
+A.14 & Suffering, corrected & --- & $\Sigma = K\cdot\max(0, N-R)$, $K \in (0,\infty)$ & Preserves both stated behaviours. Recommended form \\
+A.15 & Happiness model & $H = S + C + \dots$ & $H = S + C + V$ & Lyubomirsky--Sheldon--Schkade: set point $S$, circumstances $C$, voluntary activity $V$; original weighting contested \\
+A.16 & Trident total & $512\times3$ & $1{,}536$ \checkmark & Correct \\
+A.17 & Pre-allocation & $512\times4$ & $2{,}048$ \checkmark & Correct \\
+A.18 & Half-frame, quantum & $512/2$; $256/64$ & $256$; $4$ \checkmark & Correct \\
+A.19 & $170$ in binary & \texttt{10101010} & $\texttt{0b10101010} = 170$ \checkmark & Correct; the alternating pattern is load-bearing \\
+A.20 & Hex of symbols & \texttt{4F}, \texttt{42}, \texttt{49} & \texttt{0x4F}, \texttt{0x42}, \texttt{0x49} \checkmark & Correct ASCII \\
+A.21 & Konami sequence & stated correctly & $\uparrow\uparrow\downarrow\downarrow\leftarrow\rightarrow\leftarrow\rightarrow$ \texttt{B A} \checkmark & Correct \\
+A.22 & Digest & ``SH 56'' & SHA-256, 32-byte digest & Leaves 480 payload bytes in a 512-byte frame \\
+\bottomrule
+\end{longtable}
+}
+
+\subsection*{A.14 --- the suffering equation, in full}
+
+The corpus (S4a) defines experienced suffering over need $N$, resources $R$ and
+a constraint constant $K$, with two required behaviours: suffering collapses
+toward zero when resources meet need, and grows without bound as the constraint
+grows. As stated, $\Sigma = (N-R)K$ satisfies neither cleanly. The corrected
+form:
+\[
+\Sigma \;=\; K \cdot \max\bigl(0,\; N - R\bigr), \qquad K \in (0, \infty)
+\]
+\begin{itemize}[leftmargin=*,noitemsep]
+  \item $R \geq N \;\Rightarrow\; \Sigma = 0$ --- no negative suffering.
+  \item $N > R$, $K$ large $\;\Rightarrow\; \Sigma$ large --- constraint
+    dominates, as intended.
+  \item $N = R$ with $K \to \infty$ is now $0$, not the undefined
+    $0 \times \infty$.
+\end{itemize}
+
+The companion happiness model stated alongside it is
+$H = S + C + V$ --- genetic set point, circumstances, voluntary activity ---
+which is the Lyubomirsky--Sheldon--Schkade formulation. Its original 50/10/40
+weighting is contested in the later literature and \SHOULD{} not be treated as
+a protocol constant.
+
+% =====================================================================
+\section{Reference Alphabet}
+
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Letter} & \textbf{Standard NATO} & \textbf{Corpus usage} \\
+\midrule
+O & Oscar & Oscar \\
+B & Bravo & Bravo \\
+I & India & India / \emph{Indigo} \\
+N & November & November \\
+E & Echo & Echo \\
+X & X-ray & X-ray \\
+U & Uniform & \emph{Umbrella} \\
+S & Sierra & \emph{Sarah} \\
+G & Golf & Golf \\
+C & Charlie & Charlie \\
+H & Hotel & Hotel \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Reference string \OBI{} --- 8 symbols, indices $0$--$7$, the basis of the
+512-byte frame. Protocol name \NSIGII{} --- November, Sarah/Sierra,
+Indigo/India, Golf, India, India.
+
+% =====================================================================
+\section{Open Questions}
+\label{app:open}
+
+\begin{description}[leftmargin=1.6cm,style=nextline]
+\item[C.1] \textbf{Riemann and bottom-up decidability.} S3 asserts the Riemann
+  hypothesis ``allows you to verify whether the number was determined via
+  \CISCO{}, which is bottom-up.'' No mechanism connects the distribution of zeta
+  zeros to traversal order. Either a concrete construction is needed, or the
+  claim should be restated as an analogy.
+\item[C.2] \textbf{Damping factor 2.85.} Source and role unrecovered.
+\item[C.3] \textbf{Discriminant in the language layer.} $b^{2}-4ac$ is invoked
+  to decide the resolution count of a two-party relation. The mapping from a
+  declarative pair to $a$, $b$, $c$ is not given.
+\item[C.4] \textbf{``Never a weapon'' vs.\ litigation. \textsc{resolved} in
+  v0.3.} The mode pairing scopes ``never a weapon'' to \textsc{there and then}
+  --- the protocol's own reach --- while a claimant enforcing their own record
+  acts in \textsc{here and now} under \emph{never a toy}. The two are invariants
+  of different modes and are therefore separable. Wording in
+  \S\ref{sec:reconcile} remains open to refinement.
+\item[C.5] \textbf{Channel numbering.} CH2 vs CH3 as verifier --- normalised to
+  CH2, pending confirmation.
+\item[C.6] \textbf{Igbo tone in the wire format.} The tonal \emph{eze} example
+  is the motivating case for schema-level verification, but no encoding for tone
+  is specified. If tone is meaning, the frame needs a tone channel --- this may
+  be what the $Z$ axis is for.
+\item[C.7] \textbf{Cube roots of unity.} Whether to adopt $\omega$ in place of
+  $i$ is a design decision, not a correction. Recommended, but the author's
+  call.
+\item[C.8] \textbf{The three sixes.} Three addressing modes $\times$ two
+  orderings, the $3+3$ dimensional count, and the six R/W/X permutations all
+  give six. Whether these are the same six under different names --- which would
+  let a claim's addressing mode be derived from its permission tag, or vice
+  versa --- or a coincidence of structure, is open. If they are the same six,
+  the addressing mode need not be carried on the wire at all.
+\end{description}
+
+% =====================================================================
+\section{Traceability}
+
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Spec section} & \textbf{Corpus segment} \\
+\midrule
+\S2.1 Name, Igbo tone & S3, S5b \\
+\S2.3 Three Nevers (mode invariants) & S5; pairing ratified 25 Aug 2026 \\
+\S2.5 Toolchain & S3, S6b, S5b \\
+\S3.1 Six operators & S1 \\
+\S3.2 Order/Chaos & S1 \\
+\S3.3 Enzyme model & S1 \\
+\S3.4 Filter/Flash & S2, S5b \\
+\S4 Trident packet & S1, S2 \\
+\S4.7 Corruption classes & S1 \\
+\S4.10 XOR parity & S1, S4a \\
+\S5 \CISCO{} order & S1, S2 \\
+\S6 Channel model & S5b \\
+\S6.4 RGB tomographic & S3 \\
+\S6.5 Eviction & S4b \\
+\S6.6 Obi / Uche & S3 \\
+\S7.1--7.2 Signal model & S3, S4b \\
+\S7.3 Maybe lattice & S4b \\
+\S7.4 \textsc{ox-star} & S3 \\
+\S7.5 Probing & S3, S4a \\
+\S8.1--8.3 Addressing triad & S4a, S5; ratified 25 Aug 2026 \\
+\S8.3 Holding problem & S6a \\
+\S8.4 \LAPIS{} & S2 \\
+\S8.5--8.6 Dimensionality & S6a \\
+\S9 Codec & S6b, S5b \\
+\S10 Language layer & S6b \\
+\S11 Sizing and timing & S1, S2, S3 \\
+\S12 Governance & S3, S5, S5b \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\vfill
+\begin{center}
+\emph{End of \NSIGII{} Protocol Specification v0.3 (Draft).}
+\end{center}
+
+\end{document}

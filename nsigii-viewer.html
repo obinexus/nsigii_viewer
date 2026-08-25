@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NSIGII Scope</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* ---------------------------------------------------------------------------
+   Tokens. Bare :root is the complete light palette; the two blocks after it
+   redefine only tokens, so an explicit choice wins in both directions and the
+   un-stamped (system) state still resolves.
+   The viewport is deliberately dark in both themes - it is a display device,
+   and the ASCII colour ramp is authored against a dark ground.
+--------------------------------------------------------------------------- */
+:root {
+  --ground:      #F2F4F3;
+  --surface:     #FFFFFF;
+  --surface-sub: #E9EDEB;
+  --ink:         #0E1416;
+  --ink-soft:    #4C5A5C;
+  --ink-faint:   #7C8A8B;
+  --rule:        #D5DCDA;
+  --accent:      #1E8A62;
+  --accent-soft: #DDEFE7;
+  --verified:    #1E8A62;
+  --drift:       #B84336;
+  --observing:   #3A6D9E;
+  --scope-bg:    #0B0E10;
+  --scope-ink:   #C8D2D0;
+  --scope-rule:  #1B2226;
+  --shadow:      0 1px 2px rgba(14,20,22,.06), 0 8px 24px rgba(14,20,22,.06);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:      #0B0E10;
+    --surface:     #12171A;
+    --surface-sub: #171D20;
+    --ink:         #E6EBEA;
+    --ink-soft:    #97A5A5;
+    --ink-faint:   #6B7878;
+    --rule:        #1F272A;
+    --accent:      #3FB98A;
+    --accent-soft: #17302A;
+    --verified:    #3FB98A;
+    --drift:       #D9584A;
+    --observing:   #4A7FB5;
+    --shadow:      0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"] {
+  --ground:      #0B0E10;
+  --surface:     #12171A;
+  --surface-sub: #171D20;
+  --ink:         #E6EBEA;
+  --ink-soft:    #97A5A5;
+  --ink-faint:   #6B7878;
+  --rule:        #1F272A;
+  --accent:      #3FB98A;
+  --accent-soft: #17302A;
+  --verified:    #3FB98A;
+  --drift:       #D9584A;
+  --observing:   #4A7FB5;
+  --shadow:      0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }   /* class display rules would otherwise win */
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  display: flex;
+  flex-direction: column;
+}
+.mono { font-family: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+
+/* --- header ------------------------------------------------------------- */
+header {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--rule);
+  background: var(--surface);
+}
+.brand { display: flex; align-items: baseline; gap: 10px; margin-right: auto; }
+.brand h1 {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 15px; font-weight: 600; letter-spacing: .12em;
+  text-transform: uppercase; margin: 0;
+}
+.brand .sub { color: var(--ink-faint); font-size: 12.5px; }
+
+.badge {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px; letter-spacing: .07em; text-transform: uppercase;
+  padding: 3px 9px; border-radius: 2px;
+  border: 1px solid var(--rule); color: var(--ink-soft);
+  white-space: nowrap;
+}
+.badge.kind-ascii { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.badge.kind-video { border-color: var(--observing); color: var(--observing); }
+
+button, .filebtn {
+  font: inherit; font-size: 13px;
+  padding: 7px 14px; border-radius: 3px;
+  border: 1px solid var(--rule); background: var(--surface-sub); color: var(--ink);
+  cursor: pointer;
+}
+button:hover, .filebtn:hover { border-color: var(--accent); color: var(--accent); }
+button:focus-visible, .filebtn:focus-visible,
+input:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+button[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+input[type="file"] { position: absolute; width: 1px; height: 1px; opacity: 0; }
+
+/* --- main --------------------------------------------------------------- */
+main { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+
+#scope {
+  flex: 1; min-height: 0; position: relative;
+  background: var(--scope-bg);
+  display: grid; place-items: center;
+  overflow: hidden;
+  cursor: crosshair;
+  touch-action: none;
+}
+#scope.empty { cursor: default; }
+#scope.dragover::after {
+  content: ""; position: absolute; inset: 10px;
+  border: 2px dashed var(--accent); border-radius: 4px; pointer-events: none;
+}
+
+#ascii {
+  font-family: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  line-height: 1.2;                 /* 0.6em advance x 2 = the 2:1 cell the bake assumes */
+  white-space: pre;
+  margin: 0;
+  color: var(--scope-ink);
+  user-select: none;
+  -webkit-user-select: none;
+}
+#canvas { max-width: 100%; max-height: 100%; image-rendering: pixelated; }
+
+/* --- empty state / messages --------------------------------------------- */
+.plate { text-align: center; max-width: 46ch; padding: 28px; color: var(--scope-ink); }
+.plate h2 { font-size: 17px; font-weight: 600; margin: 0 0 8px; text-wrap: balance; }
+.plate p { margin: 0 0 6px; color: #8A9695; font-size: 13.5px; }
+.plate code {
+  font-family: "IBM Plex Mono", monospace; font-size: 12.5px;
+  background: #161C1F; padding: 2px 6px; border-radius: 2px; color: #A9B6B4;
+}
+.plate.error h2 { color: var(--drift); }
+.glyphs {
+  font-family: "IBM Plex Mono", monospace; font-size: 22px; letter-spacing: .22em;
+  color: #2A3437; margin-bottom: 18px;
+}
+
+/* --- instrument strip ---------------------------------------------------- */
+#strip {
+  border-top: 1px solid var(--rule); background: var(--surface);
+  padding: 10px 20px;
+  display: flex; align-items: center; gap: 22px; flex-wrap: wrap;
+}
+.readout { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.readout .label {
+  font-size: 10px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.readout .value {
+  font-family: "IBM Plex Mono", monospace; font-size: 14px; font-weight: 500;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.readout .value.hot { color: var(--accent); }
+.ctrl { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.ctrl label { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-faint); }
+input[type="range"] { accent-color: var(--accent); width: 130px; }
+
+/* --- metadata panel ------------------------------------------------------ */
+#meta { border-top: 1px solid var(--rule); background: var(--surface-sub); }
+#meta > summary {
+  cursor: pointer; padding: 9px 20px; font-size: 12.5px; color: var(--ink-soft);
+  letter-spacing: .04em; list-style: none;
+}
+#meta > summary::-webkit-details-marker { display: none; }
+#meta > summary::before { content: "▸ "; color: var(--ink-faint); }
+#meta[open] > summary::before { content: "▾ "; }
+.metabody { padding: 4px 20px 18px; display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.metabody h3 {
+  font-size: 10.5px; letter-spacing: .11em; text-transform: uppercase;
+  color: var(--ink-faint); margin: 0 0 7px; font-weight: 600;
+}
+dl { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 3px 14px; font-size: 12.5px; }
+dt { color: var(--ink-faint); }
+dd { margin: 0; font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+
+/* trident chain: a real sequence, so it is drawn as one */
+.chain { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 11.5px; }
+.chain .node {
+  font-family: "IBM Plex Mono", monospace;
+  border: 1px solid var(--rule); border-radius: 2px; padding: 3px 8px;
+  color: var(--ink-faint);
+}
+.chain .node.live { border-color: var(--verified); color: var(--verified); }
+.chain .arrow { color: var(--ink-faint); }
+.note { font-size: 12px; color: var(--ink-soft); margin: 8px 0 0; }
+.note strong { color: var(--drift); font-weight: 600; }
+
+progress { width: 220px; height: 6px; accent-color: var(--accent); }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+@media (max-width: 620px) {
+  #strip { gap: 14px; }
+  .ctrl { margin-left: 0; width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <h1>NSIGII Scope</h1>
+    <span class="sub">container reader &amp; player</span>
+  </div>
+  <span id="kindBadge" class="badge" hidden></span>
+  <label class="filebtn" for="fileInput" tabindex="0">Open .nsigii</label>
+  <input type="file" id="fileInput" accept=".nsigii,application/octet-stream">
+  <button id="themeBtn" type="button" title="Switch theme">Theme</button>
+</header>
+
+<main>
+  <div id="scope" class="empty">
+    <div class="plate" id="plate">
+      <div class="glyphs">.,-~:;=!*#$@</div>
+      <h2>Drop a .nsigii container here</h2>
+      <p>Or use <em>Open</em> above. Nothing is uploaded — the file is read in this tab.</p>
+      <p>Handles both payload kinds: <code>7.0.0</code> video timelines and
+         <code>7.1.0A</code> interactive rotation grids.</p>
+    </div>
+    <pre id="ascii" hidden></pre>
+    <canvas id="canvas" hidden></canvas>
+  </div>
+
+  <div id="strip">
+    <div class="readout"><span class="label">Status</span><span class="value" id="rStatus">no container</span></div>
+    <div class="readout" hidden id="boxA"><span class="label">A pitch</span><span class="value mono" id="rA">—</span></div>
+    <div class="readout" hidden id="boxB"><span class="label">B yaw</span><span class="value mono" id="rB">—</span></div>
+    <div class="readout" hidden id="boxCell"><span class="label">Cell</span><span class="value mono" id="rCell">—</span></div>
+    <div class="readout" hidden id="boxGain"><span class="label">Gain</span><span class="value mono hot" id="rGain">—</span></div>
+    <div class="readout" hidden id="boxSpeed"><span class="label">Cursor</span><span class="value mono" id="rSpeed">—</span></div>
+    <div class="readout" hidden id="boxFrame"><span class="label">Frame</span><span class="value mono" id="rFrame">—</span></div>
+
+    <div class="ctrl" id="asciiCtrl" hidden>
+      <label for="speedRef">Full gain at</label>
+      <input type="range" id="speedRef" min="40" max="600" step="10" value="250">
+      <span class="value mono" id="speedRefVal" style="font-size:12px">250 c/s</span>
+      <button id="spinBtn" type="button" aria-pressed="true">Idle spin</button>
+      <button id="resetBtn" type="button">Reset</button>
+    </div>
+    <div class="ctrl" id="videoCtrl" hidden>
+      <button id="playBtn" type="button" aria-pressed="true">Pause</button>
+      <label for="fps">fps</label>
+      <input type="range" id="fps" min="1" max="60" step="1" value="30">
+      <span class="value mono" id="fpsVal" style="font-size:12px">30</span>
+    </div>
+  </div>
+
+  <details id="meta" hidden>
+    <summary>Container detail</summary>
+    <div class="metabody">
+      <section>
+        <h3>Header</h3>
+        <dl id="hdrList"></dl>
+      </section>
+      <section>
+        <h3>Payload</h3>
+        <dl id="payList"></dl>
+      </section>
+      <section>
+        <h3>Trident chain</h3>
+        <div class="chain" id="chain">
+          <span class="node">CH0 transmit</span><span class="arrow">→</span>
+          <span class="node">CH1 receive</span><span class="arrow">→</span>
+          <span class="node">CH2 verify</span>
+        </div>
+        <p class="note" id="chainNote"></p>
+      </section>
+    </div>
+  </details>
+</main>
+
+<script>
+"use strict";
+
+/* ===========================================================================
+   Container reading
+   ---------------------------------------------------------------------------
+   Layout (little-endian), shared by both payload kinds:
+     0  8  magic       "NSIGII\0\0"
+     8  8  version     "7.0.0"  video timeline
+                       "7.1.0A" interactive coloured-ASCII rotation grid
+    16  4  width       px (video) or columns (ascii)
+    20  4  height      px (video) or rows (ascii)
+    24  4  framecount  patched after the encode loop; 0 if it was interrupted
+    28  4  reserved    ascii kind: (grid_a << 16) | grid_b
+   then, repeating: uint32 size, then `size` bytes of RAW DEFLATE.
+=========================================================================== */
+
+const HDR = 32;
+const MAGIC = "NSIGII";
+
+const $ = (id) => document.getElementById(id);
+
+function ascii(bytes, off, len) {
+  let s = "";
+  for (let i = 0; i < len; i++) {
+    const c = bytes[off + i];
+    if (c === 0) break;
+    s += String.fromCharCode(c);
+  }
+  return s;
+}
+
+function payloadKind(version) {
+  return version.endsWith("A") ? "ascii" : "video";
+}
+
+/* Go's compress/flate writes raw DEFLATE with no zlib wrapper, so this is
+   'deflate-raw' and not 'deflate'. Native since Chrome 103 / Firefox 113 /
+   Safari 16.4 — there is no library fallback here by design. */
+async function inflateRaw(bytes) {
+  const stream = new Blob([bytes]).stream()
+    .pipeThrough(new DecompressionStream("deflate-raw"));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+function readHeader(buf) {
+  const bytes = new Uint8Array(buf);
+  if (bytes.length < HDR) throw new Error("File is shorter than the 32-byte header.");
+  if (ascii(bytes, 0, 6) !== MAGIC) {
+    throw new Error(`Bad magic "${ascii(bytes, 0, 6)}" — this is not an NSIGII container.`);
+  }
+  // The constitutional wrapper from @obinexusltd/nsigii shares the magic and
+  // the extension but is a different format: byte 7 is 0x07 and it ends with
+  // an ENDSIGII footer.
+  const tail = ascii(bytes, Math.max(0, bytes.length - 4096), Math.min(4096, bytes.length));
+  if (bytes[7] === 0x07 || tail.includes("ENDSIGII")) {
+    const e = new Error("This is a constitutional wrapper container, not a codec stream.");
+    e.wrapper = true;
+    throw e;
+  }
+  const dv = new DataView(buf);
+  return {
+    version:  ascii(bytes, 8, 8),
+    width:    dv.getUint32(16, true),
+    height:   dv.getUint32(20, true),
+    declared: dv.getUint32(24, true),
+    reserved: dv.getUint32(28, true),
+  };
+}
+
+function sliceFrames(buf) {
+  const dv = new DataView(buf);
+  const out = [];
+  let off = HDR;
+  while (off + 4 <= buf.byteLength) {
+    const size = dv.getUint32(off, true);
+    off += 4;
+    if (size === 0) continue;
+    if (off + size > buf.byteLength) break;        // truncated tail
+    out.push(new Uint8Array(buf, off, size));
+    off += size;
+  }
+  return out;
+}
+
+async function inflateAll(blobs, onProgress) {
+  const out = new Array(blobs.length);
+  const BATCH = 48;
+  for (let i = 0; i < blobs.length; i += BATCH) {
+    const slice = blobs.slice(i, i + BATCH);
+    const done = await Promise.all(slice.map(inflateRaw));
+    for (let j = 0; j < done.length; j++) out[i + j] = done[j];
+    if (onProgress) onProgress(Math.min(i + BATCH, blobs.length), blobs.length);
+  }
+  return out;
+}
+
+/* ===========================================================================
+   Interaction contract (mirrors nsigii_play.py)
+   Gain applied to cursor motion scales with cursor speed between these bounds.
+=========================================================================== */
+const GAIN_MIN = 2.5;
+const GAIN_MAX = 5.0;
+const RAD_PER_CELL = 0.0314;      // one full turn per 80-cell drag at GAIN_MIN
+const IDLE_SPIN = 0.9;            // rad/sec when the cursor is still
+let SPEED_REF = 250;              // cells/sec at which gain reaches GAIN_MAX
+
+/* ===========================================================================
+   Viewer state
+=========================================================================== */
+const S = {
+  kind: null, header: null, frames: [], name: "",
+  A: 0, B: 0, gridA: 1, gridB: 1, lastIdx: -1,
+  gain: GAIN_MIN, speed: 0, spin: true,
+  pointer: null, lastMove: 0,
+  playing: true, fps: 30, videoIdx: 0, videoTime: 0,
+  raf: 0,
+};
+
+const scope = $("scope"), plate = $("plate"), pre = $("ascii"), canvas = $("canvas");
+const ctx = canvas.getContext("2d", { willReadFrequently: true });
+
+function showPlate(html, isError) {
+  plate.innerHTML = html;
+  plate.classList.toggle("error", !!isError);
+  plate.hidden = false;
+  pre.hidden = true;
+  canvas.hidden = true;
+  scope.classList.add("empty");
+}
+
+function setStatus(text) { $("rStatus").textContent = text; }
+
+function showReadouts(kind) {
+  const asciiBoxes = ["boxA", "boxB", "boxCell", "boxGain", "boxSpeed"];
+  asciiBoxes.forEach(id => { $(id).hidden = kind !== "ascii"; });
+  $("boxFrame").hidden = kind !== "video";
+  $("asciiCtrl").hidden = kind !== "ascii";
+  $("videoCtrl").hidden = kind !== "video";
+}
+
+/* --- ASCII rendering: merge runs of identical colour into single spans ---- */
+function renderAscii(planes, w, h) {
+  const size = w * h;
+  if (planes.length < size * 4) return "";
+  const rp = size, gp = size * 2, bp = size * 3;
+  let html = "", run = "", cur = -2;
+
+  const flush = () => {
+    if (!run) return;
+    const safe = run.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    html += cur < 0 ? safe
+      : `<span style="color:rgb(${(cur >> 16) & 255},${(cur >> 8) & 255},${cur & 255})">${safe}</span>`;
+    run = "";
+  };
+
+  for (let row = 0; row < h; row++) {
+    const base = row * w;
+    for (let col = 0; col < w; col++) {
+      const o = base + col;
+      const ch = planes[o];
+      const colour = ch === 32 ? -1 : ((planes[rp + o] << 16) | (planes[gp + o] << 8) | planes[bp + o]);
+      if (colour !== cur) { flush(); cur = colour; }
+      run += String.fromCharCode(ch);
+    }
+    run += "\n";
+  }
+  flush();
+  return html;
+}
+
+/* Measure the real cell box rather than assuming an advance ratio: if the web
+   font has not loaded and a fallback monospace is in use, its advance differs
+   and the donut's 2:1 cell aspect would skew. */
+let probe = null;
+function measureCell(fontSizePx) {
+  if (!probe) {
+    probe = document.createElement("span");
+    probe.setAttribute("aria-hidden", "true");
+    probe.style.cssText =
+      "position:absolute;visibility:hidden;white-space:pre;left:-9999px;top:0;" +
+      "font-family:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;line-height:1.2";
+    document.body.appendChild(probe);
+  }
+  probe.style.fontSize = fontSizePx + "px";
+  probe.textContent = "M".repeat(50) + "\n" + "M".repeat(50);
+  const r = probe.getBoundingClientRect();
+  return { cellW: r.width / 50, cellH: r.height / 2 };
+}
+
+function fitAscii(w, h) {
+  const pad = 16;
+  const availW = Math.max(40, scope.clientWidth - pad * 2);
+  const availH = Math.max(40, scope.clientHeight - pad * 2);
+  const REF = 100;                              // measure once at a big size
+  const m = measureCell(REF);
+  const size = Math.max(5, Math.min(availW / (w * m.cellW / REF),
+                                    availH / (h * m.cellH / REF)));
+  pre.style.fontSize = size.toFixed(2) + "px";
+  return { cellW: m.cellW * size / REF, cellH: m.cellH * size / REF };
+}
+
+let cellMetrics = { cellW: 8, cellH: 16 };
+
+function drawAsciiCell() {
+  const tau = Math.PI * 2;
+  const ai = ((Math.floor(((S.A % tau) + tau) % tau / tau * S.gridA)) % S.gridA + S.gridA) % S.gridA;
+  const bi = ((Math.floor(((S.B % tau) + tau) % tau / tau * S.gridB)) % S.gridB + S.gridB) % S.gridB;
+  const idx = ai * S.gridB + bi;
+
+  if (idx !== S.lastIdx && S.frames[idx]) {
+    S.lastIdx = idx;
+    pre.innerHTML = renderAscii(S.frames[idx], S.header.width, S.header.height);
+  }
+  const deg = (r) => (((r % tau) + tau) % tau * 180 / Math.PI).toFixed(1);
+  $("rA").textContent = deg(S.A) + "°";
+  $("rB").textContent = deg(S.B) + "°";
+  $("rCell").textContent = `${ai},${bi} / ${S.gridA}×${S.gridB}`;
+  $("rGain").textContent = S.gain.toFixed(2) + "×";
+  $("rSpeed").textContent = Math.round(S.speed) + " c/s";
+}
+
+/* --- video rendering: sample I420 straight into the canvas --------------- */
+function drawVideoFrame(i420) {
+  const { width: w, height: h } = S.header;
+  const cw = canvas.width, chh = canvas.height;
+  const img = ctx.createImageData(cw, chh);
+  const d = img.data;
+  const ySize = w * h, cW = w >> 1, cSize = cW * (h >> 1);
+  const uOff = ySize, vOff = ySize + cSize;
+  const hasChroma = i420.length >= vOff + cSize;
+
+  for (let y = 0; y < chh; y++) {
+    const sy = (y * h / chh) | 0;
+    const rowBase = sy * w;
+    const cRow = (sy >> 1) * cW;
+    for (let x = 0; x < cw; x++) {
+      const sx = (x * w / cw) | 0;
+      const Y = i420[rowBase + sx];
+      let R = Y, G = Y, B = Y;
+      if (hasChroma) {
+        const ci = cRow + (sx >> 1);
+        const U = i420[uOff + ci] - 128, V = i420[vOff + ci] - 128;
+        R = Y + 1.402 * V;
+        G = Y - 0.344136 * U - 0.714136 * V;
+        B = Y + 1.772 * U;
+      }
+      const o = (y * cw + x) << 2;
+      d[o]     = R < 0 ? 0 : R > 255 ? 255 : R;
+      d[o + 1] = G < 0 ? 0 : G > 255 ? 255 : G;
+      d[o + 2] = B < 0 ? 0 : B > 255 ? 255 : B;
+      d[o + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
+function fitCanvas(w, h) {
+  const maxW = Math.min(scope.clientWidth - 24, 1280);
+  const maxH = scope.clientHeight - 24;
+  let cw = maxW, chh = Math.round(maxW * h / w);
+  if (chh > maxH) { chh = maxH; cw = Math.round(maxH * w / h); }
+  canvas.width = Math.max(2, cw);
+  canvas.height = Math.max(2, chh);
+}
+
+/* ===========================================================================
+   Animation loop
+=========================================================================== */
+let lastTick = performance.now();
+
+function tick(now) {
+  const dt = Math.min(0.1, (now - lastTick) / 1000);
+  lastTick = now;
+
+  if (S.kind === "ascii" && S.frames.length) {
+    const idle = now - S.lastMove > 120;
+    if (idle) {
+      S.speed *= 0.85;
+      if (S.speed < 1) S.speed = 0;
+      if (S.spin) { S.B += IDLE_SPIN * dt; S.A += IDLE_SPIN * 0.37 * dt; }
+    }
+    drawAsciiCell();
+  } else if (S.kind === "video" && S.frames.length) {
+    if (S.playing) {
+      S.videoTime += dt;
+      const step = 1 / S.fps;
+      while (S.videoTime >= step) {
+        S.videoTime -= step;
+        S.videoIdx = (S.videoIdx + 1) % S.frames.length;
+        drawVideoFrame(S.frames[S.videoIdx]);
+        $("rFrame").textContent = `${S.videoIdx + 1} / ${S.frames.length}`;
+      }
+    }
+  }
+  S.raf = requestAnimationFrame(tick);
+}
+
+/* ===========================================================================
+   Pointer interaction — the 2.5..5.0 speed-proportional gain
+=========================================================================== */
+scope.addEventListener("pointermove", (ev) => {
+  if (S.kind !== "ascii" || !S.frames.length) return;
+  const now = performance.now();
+  if (S.pointer) {
+    const dxPx = ev.clientX - S.pointer.x;
+    const dyPx = ev.clientY - S.pointer.y;
+    const dt = Math.max(0.004, (now - S.pointer.t) / 1000);
+    const dx = dxPx / cellMetrics.cellW;
+    const dy = dyPx / cellMetrics.cellH;
+    if (dx || dy) {
+      S.speed = Math.hypot(dx, dy) / dt;
+      const frac = Math.max(0, Math.min(1, S.speed / SPEED_REF));
+      S.gain = GAIN_MIN + (GAIN_MAX - GAIN_MIN) * frac;
+      S.B += dx * S.gain * RAD_PER_CELL;
+      S.A += dy * S.gain * RAD_PER_CELL;
+      S.lastMove = now;
+    }
+  }
+  S.pointer = { x: ev.clientX, y: ev.clientY, t: now };
+});
+scope.addEventListener("pointerleave", () => { S.pointer = null; });
+
+/* ===========================================================================
+   Loading
+=========================================================================== */
+async function load(buf, name) {
+  S.name = name;
+  cancelAnimationFrame(S.raf);
+  S.frames = []; S.lastIdx = -1; S.A = S.B = 0; S.videoIdx = 0;
+
+  let header;
+  try {
+    header = readHeader(buf);
+  } catch (err) {
+    if (err.wrapper) {
+      showPlate(`<h2>Constitutional wrapper, not a codec stream</h2>
+        <p>This file carries the verification receipt format from
+        <code>@obinexusltd/nsigii</code>. It shares the magic and the extension
+        with the codec stream but is a different layout.</p>
+        <p>Unwrap it first: <code>npx @obinexusltd/nsigii extract "${name}"</code></p>`, true);
+    } else {
+      showPlate(`<h2>Could not read this container</h2><p>${err.message}</p>`, true);
+    }
+    setStatus("unreadable");
+    $("kindBadge").hidden = true;
+    $("meta").hidden = true;
+    return;
+  }
+
+  S.header = header;
+  S.kind = payloadKind(header.version);
+  const blobs = sliceFrames(buf);
+
+  const badge = $("kindBadge");
+  badge.hidden = false;
+  badge.className = "badge kind-" + S.kind;
+  badge.textContent = S.kind === "ascii" ? "interactive ascii" : "video timeline";
+
+  showPlate(`<h2>Inflating ${blobs.length} frames</h2>
+    <p><progress id="prog" max="${blobs.length}" value="0"></progress></p>
+    <p id="progTxt">0 / ${blobs.length}</p>`);
+  setStatus("inflating");
+
+  let frames;
+  try {
+    frames = await inflateAll(blobs, (done, total) => {
+      const p = $("prog"), t = $("progTxt");
+      if (p) p.value = done;
+      if (t) t.textContent = `${done} / ${total}`;
+    });
+  } catch (err) {
+    showPlate(`<h2>Inflate failed</h2>
+      <p>${err.message}</p>
+      <p>This viewer needs <code>DecompressionStream('deflate-raw')</code>.
+         It is available in Chrome 103+, Firefox 113+ and Safari 16.4+.</p>`, true);
+    setStatus("inflate failed");
+    return;
+  }
+
+  S.frames = frames;
+  plate.hidden = true;
+  scope.classList.remove("empty");
+  showReadouts(S.kind);
+  buildMeta(header, blobs, frames, name);
+
+  // Reveal every panel that takes vertical space BEFORE fitting, or the scope
+  // shrinks underneath the type and the content is clipped.
+  $("meta").hidden = false;
+
+  if (S.kind === "ascii") {
+    S.gridA = (header.reserved >>> 16) & 0xFFFF || 1;
+    S.gridB = header.reserved & 0xFFFF || 1;
+    pre.hidden = false;
+    cellMetrics = fitAscii(header.width, header.height);
+    setStatus("interactive");
+  } else {
+    canvas.hidden = false;
+    fitCanvas(header.width, header.height);
+    drawVideoFrame(frames[0]);
+    $("rFrame").textContent = `1 / ${frames.length}`;
+    setStatus(S.playing ? "playing" : "paused");
+  }
+  // and refit once layout has settled, in case a web font arrived late
+  requestAnimationFrame(() => {
+    if (S.kind === "ascii") cellMetrics = fitAscii(S.header.width, S.header.height);
+    else { fitCanvas(S.header.width, S.header.height); if (S.frames[S.videoIdx]) drawVideoFrame(S.frames[S.videoIdx]); }
+  });
+  lastTick = performance.now();
+  S.raf = requestAnimationFrame(tick);
+}
+
+function buildMeta(h, blobs, frames, name) {
+  const kind = payloadKind(h.version);
+  const sum = blobs.reduce((a, b) => a + b.length + 4, 0);
+  const rawPer = kind === "ascii" ? h.width * h.height * 4 : (h.width * h.height * 3) >> 1;
+  const rawTotal = rawPer * frames.length;
+  const fmt = (n) => n.toLocaleString("en-US");
+
+  $("hdrList").innerHTML = `
+    <dt>file</dt><dd>${name}</dd>
+    <dt>magic</dt><dd>NSIGII</dd>
+    <dt>version</dt><dd>${h.version}</dd>
+    <dt>${kind === "ascii" ? "grid" : "size"}</dt><dd>${h.width}×${h.height} ${kind === "ascii" ? "cells" : "px"}</dd>
+    <dt>declared</dt><dd>${fmt(h.declared)}${h.declared !== frames.length
+      ? ` &nbsp;<span style="color:var(--drift)">≠ ${fmt(frames.length)} found</span>` : ""}</dd>
+    <dt>reserved</dt><dd>0x${h.reserved.toString(16).padStart(8, "0")}</dd>`;
+
+  $("payList").innerHTML = `
+    <dt>kind</dt><dd>${kind === "ascii" ? "char | r | g | b planes" : "I420 planes"}</dd>
+    <dt>frames</dt><dd>${fmt(frames.length)}</dd>
+    ${kind === "ascii" ? `<dt>rotation</dt><dd>${(h.reserved >>> 16) & 0xFFFF}×${h.reserved & 0xFFFF}
+      (${(360 / (((h.reserved >>> 16) & 0xFFFF) || 1)).toFixed(1)}°/step)</dd>` : ""}
+    <dt>raw</dt><dd>${fmt(rawTotal)} B</dd>
+    <dt>encoded</dt><dd>${fmt(sum)} B (${(100 * sum / rawTotal).toFixed(1)}%)</dd>`;
+
+  // The codec container carries no per-frame receipt. Say so plainly rather
+  // than drawing a chain that implies verification happened.
+  $("chainNote").innerHTML = h.declared !== frames.length
+    ? `<strong>Frame count mismatch.</strong> The header is patched by a seek after
+       the encode loop, so a count of 0 or a short count means the encoder was
+       interrupted. The frames themselves read fine.`
+    : `The codec container stores no per-frame receipt — the RWX chain, hashes and
+       consensus flag are computed during encoding and discarded. Only the
+       constitutional wrapper carries them, which is why these two formats
+       want converging.`;
+}
+
+/* ===========================================================================
+   Wiring
+=========================================================================== */
+async function readFile(file) {
+  setStatus("reading");
+  const buf = await file.arrayBuffer();
+  await load(buf, file.name);
+}
+
+$("fileInput").addEventListener("change", (e) => {
+  if (e.target.files && e.target.files[0]) readFile(e.target.files[0]);
+});
+document.querySelector(".filebtn").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("fileInput").click(); }
+});
+
+["dragenter", "dragover"].forEach(t => scope.addEventListener(t, (e) => {
+  e.preventDefault(); scope.classList.add("dragover");
+}));
+["dragleave", "drop"].forEach(t => scope.addEventListener(t, (e) => {
+  e.preventDefault(); scope.classList.remove("dragover");
+}));
+scope.addEventListener("drop", (e) => {
+  const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+  if (f) readFile(f);
+});
+
+$("speedRef").addEventListener("input", (e) => {
+  SPEED_REF = +e.target.value;
+  $("speedRefVal").textContent = SPEED_REF + " c/s";
+});
+$("spinBtn").addEventListener("click", (e) => {
+  S.spin = !S.spin;
+  e.currentTarget.setAttribute("aria-pressed", String(S.spin));
+});
+$("resetBtn").addEventListener("click", () => { S.A = S.B = 0; S.lastIdx = -1; });
+$("playBtn").addEventListener("click", (e) => {
+  S.playing = !S.playing;
+  e.currentTarget.textContent = S.playing ? "Pause" : "Play";
+  e.currentTarget.setAttribute("aria-pressed", String(S.playing));
+  setStatus(S.playing ? "playing" : "paused");
+});
+$("fps").addEventListener("input", (e) => {
+  S.fps = +e.target.value;
+  $("fpsVal").textContent = S.fps;
+});
+
+$("themeBtn").addEventListener("click", () => {
+  const cur = document.documentElement.getAttribute("data-theme");
+  const sysDark = matchMedia("(prefers-color-scheme: dark)").matches;
+  const next = cur ? (cur === "dark" ? "light" : "dark") : (sysDark ? "light" : "dark");
+  document.documentElement.setAttribute("data-theme", next);
+  try { localStorage.setItem("nsigii-theme", next); } catch (_) {}
+});
+try {
+  const saved = localStorage.getItem("nsigii-theme");
+  if (saved) document.documentElement.setAttribute("data-theme", saved);
+} catch (_) {}
+
+if (document.fonts && document.fonts.ready) {
+  document.fonts.ready.then(() => {
+    if (S.kind === "ascii" && S.header) cellMetrics = fitAscii(S.header.width, S.header.height);
+  });
+}
+
+addEventListener("resize", () => {
+  if (!S.header) return;
+  if (S.kind === "ascii") { cellMetrics = fitAscii(S.header.width, S.header.height); }
+  else { fitCanvas(S.header.width, S.header.height); if (S.frames[S.videoIdx]) drawVideoFrame(S.frames[S.videoIdx]); }
+});
+
+addEventListener("keydown", (e) => {
+  if (e.key === " " && S.kind) {
+    e.preventDefault();
+    if (S.kind === "ascii") $("spinBtn").click(); else $("playBtn").click();
+  }
+  if ((e.key === "r" || e.key === "R") && S.kind === "ascii") $("resetBtn").click();
+});
+
+// ?src=path.nsigii — for hosting the viewer next to containers on a static host
+(async () => {
+  const src = new URLSearchParams(location.search).get("src");
+  if (!src) return;
+  try {
+    setStatus("fetching");
+    const res = await fetch(src);
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+    await load(await res.arrayBuffer(), src.split("/").pop());
+  } catch (err) {
+    showPlate(`<h2>Could not fetch that container</h2>
+      <p>${err.message}</p>
+      <p>Fetching needs the file served over http(s) from the same origin, or with
+         CORS headers. Dropping the file in always works.</p>`, true);
+    setStatus("fetch failed");
+  }
+})();
+
+if (typeof DecompressionStream !== "function") {
+  showPlate(`<h2>This browser cannot inflate the payload</h2>
+    <p>The viewer relies on the native <code>DecompressionStream</code> API so it
+       needs no libraries. Chrome 103+, Firefox 113+ or Safari 16.4+ will work.</p>`, true);
+  setStatus("unsupported browser");
+}
+</script>
+</body>
+</html>
