@@ -1,0 +1,13 @@
+{
+  "name": "nsigii-viewer",
+  "version": "7.1.0",
+  "private": true,
+  "description": "NSIGII Scope — browser reader for the legacy 7.0.0 / 7.1.0A codec stream, with CORE_V1 (WASM) and constitutional-wrapper dispatch",
+  "scripts": {
+    "serve": "node test/serve.mjs . 8791",
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.0"
+  }
+}

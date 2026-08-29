@@ -1,0 +1,88 @@
+name: viewer CI
+
+# Headless browser tests for the dispatch front end. Checks out the C core and
+# the runtime CLI read-only at pinned revisions (test/repos.lock.json), builds
+# the WASM codec, and drives nsigii-viewer.html with Playwright.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NSIGII_PROJECT_REF: f840d7f250d4cb89a54fb9778d5d5f318ab11eb5
+  NSIGII_CLI_REF: 4de090a23ce879e2ecfd2d8cfd43705b40fc310d
+
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout viewer
+        uses: actions/checkout@v4
+
+      - name: Checkout obinexus/nsigii_project (C core + WASM)
+        uses: actions/checkout@v4
+        with:
+          repository: obinexus/nsigii_project
+          ref: ${{ env.NSIGII_PROJECT_REF }}
+          path: _c
+
+      - name: Checkout obinexusmk2/nsigii (runtime CLI, for the wrapper fixture)
+        uses: actions/checkout@v4
+        with:
+          repository: obinexusmk2/nsigii
+          ref: ${{ env.NSIGII_CLI_REF }}
+          path: _cli
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Build the C core
+        run: make -C _c
+
+      - uses: mymindstorm/setup-emsdk@v14
+        with: { version: 3.1.69 }
+      - name: Build the WASM codec
+        run: |
+          make -C _c wasm
+          # nsigii.js + nsigii.wasm are build outputs; nsigii-adapter.mjs is committed in _c.
+          test -s _c/bindings/web/nsigii.js
+          test -s _c/bindings/web/nsigii.wasm
+          test -s _c/bindings/web/nsigii-adapter.mjs
+
+      - name: Build the runtime CLI
+        run: cd _cli && npm ci && npm run build
+
+      - name: Install viewer test deps
+        run: npm ci
+
+      - name: Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run browser tests
+        run: npm test
+        env:
+          NSIGII_CORE_WEB: ${{ github.workspace }}/_c/bindings/web
+          NSIGII_C_BIN: ${{ github.workspace }}/_c/build/nsigii
+          NSIGII_CLI: ${{ github.workspace }}/_cli/dist/cli.js
+
+      - name: Upload report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report
+          retention-days: 7
+
+      - name: Working tree clean
+        run: git diff --exit-code

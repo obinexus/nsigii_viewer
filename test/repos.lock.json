@@ -1,0 +1,13 @@
+{
+  "note": "Pinned revisions for the viewer CI. Bump in lockstep with .github/workflows/ci.yml.",
+  "nsigii_project": {
+    "repo": "obinexus/nsigii_project",
+    "ref": "f840d7f250d4cb89a54fb9778d5d5f318ab11eb5",
+    "provides": "C core + `make wasm` (nsigii.js / nsigii.wasm / bindings/web/nsigii-adapter.mjs)"
+  },
+  "nsigii": {
+    "repo": "obinexusmk2/nsigii",
+    "ref": "4de090a23ce879e2ecfd2d8cfd43705b40fc310d",
+    "provides": "the `nsigii` CLI (dist/cli.js) for the constitutional-wrapper fixture"
+  }
+}

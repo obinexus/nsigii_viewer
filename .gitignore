@@ -1,0 +1,14 @@
+# CORE_V1 codec — built by `make wasm` in obinexus/nsigii_project and placed
+# next to nsigii-viewer.html at deploy/test time. Not vendored here.
+/nsigii.js
+/nsigii.wasm
+/nsigii-adapter.mjs
+/vendor/
+
+# Test artifacts
+/node_modules/
+/test-results/
+/playwright-report/
+/.playwright/
+/test/.artifacts/
+/donut.core.nsigii

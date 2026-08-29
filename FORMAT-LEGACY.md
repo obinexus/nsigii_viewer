@@ -167,10 +167,11 @@ A legacy reader that encounters `byte[7] == 0x07`, an `ENDNSIGII` / `ENDSIGII`
 tail, or the 8-byte literal `NSIGII01` must **refuse** the file and point the
 operator at the right tool — it must not try to interpret any of them as frames.
 
-> Note: `nsigii-viewer.html` and `nsigii_play.py` currently scan only for the
-> 8-byte `ENDSIGII` tail. Recognising the current 9-byte `ENDNSIGII` footer, and
-> routing `NSIGII01` through the C/WASM decoder, is tracked as viewer
-> integration work — it does not change this format.
+> Note: `nsigii-viewer.html` recognises all three layouts — it renders this
+> codec stream, decodes `NSIGII01` through the C/WASM adapter and re-dispatches
+> the result, and shows a receipt for the constitutional wrapper (`ENDNSIGII` or
+> legacy `ENDSIGII` tail). See `INTEGRATION.md`. `nsigii_play.py` still scans
+> only for `ENDSIGII`; none of this changes the codec-stream format itself.
 
 ---
 
