@@ -413,6 +413,19 @@ function ensureCore() {
   return _corePromise;
 }
 
+/* Browser-safe constitutional verify/extract — the ESM built from
+   obinexusmk2/nsigii → src/browser/constitutional.mts (dist/browser/
+   constitutional.mjs), placed next to this page as nsigii-constitutional.mjs.
+   Optional: without it, a wrapper is shown as an unverified receipt. */
+let _constPromise = null;
+function ensureConstitutional() {
+  if (!_constPromise) {
+    _constPromise = import(new URL("./nsigii-constitutional.mjs", location.href).href)
+      .catch((err) => { _constPromise = null; throw new Error("nsigii-constitutional.mjs not found next to this page (" + err.message + ")"); });
+  }
+  return _constPromise;
+}
+
 const MAX_DISPATCH_DEPTH = 4;
 
 function sliceFrames(buf) {
@@ -480,9 +493,10 @@ function setStatus(text) { $("rStatus").textContent = text; }
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
-/* Constitutional wrapper: this viewer displays the container receipt only and
-   does not execute or verify it. Point the operator at the CLI. */
-function showWrapperReceipt(h, name) {
+/* Constitutional wrapper receipt. The payload is shown as metadata only and is
+   never executed. `verdict` (if the browser verifier ran) reports 3/3 consensus;
+   `note` carries a reason the verifier could not run. */
+function showWrapperReceipt(h, name, verdict, note) {
   cancelAnimationFrame(S.raf);
   $("kindBadge").hidden = true;
   $("meta").hidden = true;
@@ -491,12 +505,19 @@ function showWrapperReceipt(h, name) {
     : `<p><code>${esc(h.fileName || "?")}</code> · ${h.payloadSize} byte payload · hint
        <code>${esc(h.formatHint || "unknown")}</code> · footer ${h.footerFound ? "present" : "missing"}</p>
        <p style="word-break:break-all">sha256 ${esc(h.payloadHash || "?")}</p>`;
+  const line = verdict
+    ? `<p>Verification: <strong>${esc(verdict.consensus)}</strong> (${verdict.consensusCount}/3 trident).
+       ${verdict.consensus === "YES" ? "" : "Payload not released."}</p>`
+    : note
+      ? `<p>Not verified in this page: ${esc(note)}</p>`
+      : "";
   showPlate(`<h2>Constitutional wrapper receipt</h2>
     ${rows}
-    <p>This viewer displays the container receipt only and does not execute or
-       verify it. Verify and unwrap with the runtime:</p>
+    ${line}
+    <p>This viewer displays the container receipt only and does not execute the
+       payload. Verify and unwrap with the runtime:</p>
     <p><code>npx nsigii verify "${esc(name)}"</code> · <code>npx nsigii extract -r "${esc(name)}"</code></p>`, false);
-  setStatus("wrapper receipt");
+  setStatus(verdict && verdict.consensus === "YES" ? "verified — not released" : "wrapper receipt");
 }
 
 function showUnknown(buf, name) {
@@ -752,7 +773,22 @@ async function open(buf, name, depth = 0) {
     return open(decoded.buffer, name + " ▸ decoded", depth + 1);
   }
 
-  if (header.variant === "wrapper") { showWrapperReceipt(header, name); return; }
+  if (header.variant === "wrapper") {
+    if (header.incomplete || depth >= MAX_DISPATCH_DEPTH) { showWrapperReceipt(header, name); return; }
+    let ext;
+    try {
+      const c = await ensureConstitutional();
+      setStatus("verifying");
+      showPlate(`<h2>Verifying constitutional wrapper…</h2><p>Recomputing the trident hashes.</p>`);
+      const verdict = await c.verifyBytes(new Uint8Array(buf));
+      if (verdict.consensus !== "YES") { showWrapperReceipt(header, name, verdict); return; }
+      ext = await c.extractBytes(new Uint8Array(buf));
+    } catch (err) {
+      showWrapperReceipt(header, name, null, err.message);
+      return;
+    }
+    return open(ext.bytes.buffer, name + " ▸ extracted", depth + 1);
+  }
   if (header.variant === "unknown") { showUnknown(buf, name); return; }
 
   // header.variant === "codec"

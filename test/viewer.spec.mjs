@@ -11,7 +11,7 @@
  */
 import { test, expect } from "@playwright/test";
 import { execFileSync } from "node:child_process";
-import { copyFileSync, rmSync } from "node:fs";
+import { copyFileSync, existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -19,9 +19,12 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const CORE_WEB = process.env.NSIGII_CORE_WEB;
 const C_BIN = process.env.NSIGII_C_BIN;
 const CLI = process.env.NSIGII_CLI;
+// dist/browser/constitutional.mjs sits beside dist/cli.js in the built runtime
+const CONSTITUTIONAL = CLI ? resolve(dirname(CLI), "browser", "constitutional.mjs") : "";
 
 const staged = [];
 const stage = (name) => { staged.push(resolve(ROOT, name)); return resolve(ROOT, name); };
+let CONSTITUTIONAL_OK = false;
 
 test.beforeAll(() => {
   test.skip(!CORE_WEB || !C_BIN, "set NSIGII_CORE_WEB and NSIGII_C_BIN");
@@ -31,6 +34,16 @@ test.beforeAll(() => {
   execFileSync(C_BIN, ["pack", resolve(ROOT, "donut.nsigii"), stage("donut.core.nsigii")]);
   if (CLI) {
     execFileSync("node", [CLI, "wrap", resolve(ROOT, "donut.nsigii"), "-o", stage("donut.wrapped.nsigii")], { stdio: "ignore" });
+  }
+  if (CLI && CONSTITUTIONAL && existsSync(CONSTITUTIONAL)) {
+    CONSTITUTIONAL_OK = true;
+    copyFileSync(CONSTITUTIONAL, stage("nsigii-constitutional.mjs"));
+    // G fixture: wrap the CORE_V1-packed donut in a constitutional wrapper
+    execFileSync("node", [CLI, "wrap", resolve(ROOT, "donut.core.nsigii"), "-o", stage("donut.wrapped-core.nsigii")], { stdio: "ignore" });
+    // tampered fixture: flip a payload byte so verification fails
+    const bad = readFileSync(resolve(ROOT, "donut.wrapped.nsigii"));
+    bad[Math.floor(bad.length / 2)] ^= 0xff;
+    writeFileSync(stage("donut.wrapped-bad.nsigii"), bad);
   }
 });
 
@@ -58,10 +71,28 @@ test("F — opens a CORE_V1-wrapped legacy donut through the WASM decoder", asyn
   await expect(page.locator("#hdrList")).toContainText("7.1.0A");
 });
 
-test("wrapper — receipt only, never executed", async ({ page }) => {
+test("wrapper — verifies then descends to the legacy renderer", async ({ page }) => {
   test.skip(!CLI, "set NSIGII_CLI to obinexusmk2/nsigii dist/cli.js");
   await page.goto("/nsigii-viewer.html?src=donut.wrapped.nsigii");
-  await expect(page.locator("#rStatus")).toHaveText("wrapper receipt");
+  await rendered(page);
+  await expect(page.locator("#hdrList")).toContainText("extracted"); // "▸ extracted" — it was verified + unwrapped
+  await expect(page.locator("#hdrList")).toContainText("7.1.0A");
+});
+
+test("G — wrapper ▸ CORE_V1 ▸ legacy donut, all three layers", async ({ page }) => {
+  test.skip(!CLI || !CONSTITUTIONAL_OK, "needs NSIGII_CLI and the browser constitutional module");
+  await page.goto("/nsigii-viewer.html?src=donut.wrapped-core.nsigii");
+  await rendered(page);
+  await expect(page.locator("#hdrList")).toContainText("extracted"); // verified wrapper
+  await expect(page.locator("#hdrList")).toContainText("decoded");   // WASM CORE_V1 decode
+  await expect(page.locator("#hdrList")).toContainText("7.1.0A");
+});
+
+test("I (browser) — a tampered wrapper is not released, only a receipt", async ({ page }) => {
+  test.skip(!CLI || !CONSTITUTIONAL_OK, "needs NSIGII_CLI and the browser constitutional module");
+  await page.goto("/nsigii-viewer.html?src=donut.wrapped-bad.nsigii");
+  await expect(page.locator("#rStatus")).toHaveText(/wrapper receipt|verified — not released/, { timeout: 20_000 });
+  await expect(page.locator("#plate")).toContainText("not released");
   await expect(page.locator("#plate")).toContainText("does not execute");
   await expect(page.locator("#ascii")).toBeHidden();
 });
