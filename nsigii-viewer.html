@@ -327,6 +327,13 @@ function ascii(bytes, off, len) {
   return s;
 }
 
+/* Like ascii() but does not stop at NUL — for scanning a binary tail window. */
+function rawStr(bytes, off, len) {
+  let s = "";
+  for (let i = 0; i < len && off + i < bytes.length; i++) s += String.fromCharCode(bytes[off + i]);
+  return s;
+}
+
 function payloadKind(version) {
   return version.endsWith("A") ? "ascii" : "video";
 }
@@ -340,23 +347,41 @@ async function inflateRaw(bytes) {
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 
+/* Classify by the first 8 bytes — the shared contract in
+   obinexusmk2/nsigii → docs/DISPATCH.md. Three unrelated layouts share the
+   "NSIGII" prefix:
+     NSIGII01                       -> CORE_V1 byte container   (obinexus/nsigii_project)
+     NSIGII\0 + 0x07 / ENDNSIGII    -> constitutional wrapper   (obinexusmk2/nsigii)
+     NSIGII\0\0                     -> legacy codec stream      (this repo)
+   This viewer renders the codec stream, decodes CORE_V1 through the C/WASM
+   adapter, and shows a receipt for the wrapper. It never executes a payload. */
 function readHeader(buf) {
   const bytes = new Uint8Array(buf);
-  if (bytes.length < HDR) throw new Error("File is shorter than the 32-byte header.");
-  if (ascii(bytes, 0, 6) !== MAGIC) {
-    throw new Error(`Bad magic "${ascii(bytes, 0, 6)}" — this is not an NSIGII container.`);
+  if (bytes.length < 8) throw new Error("File is shorter than 8 bytes — not a NSIGII artifact.");
+
+  if (ascii(bytes, 0, 8) === "NSIGII01") return { variant: "core" };
+  if (ascii(bytes, 0, 6) !== MAGIC) return { variant: "unknown" };
+
+  const tail = rawStr(bytes, Math.max(0, bytes.length - 4096), Math.min(4096, bytes.length));
+  const footer = tail.includes("ENDNSIGII") || tail.includes("ENDSIGII");
+  if ((bytes[6] === 0 && bytes[7] === 0x07) || footer) {
+    if (bytes.length < 369) return { variant: "wrapper", incomplete: true };
+    const dv = new DataView(buf);
+    return {
+      variant: "wrapper",
+      version: `${bytes[7]}.${bytes[8]}.${bytes[9]}`,
+      fileName: ascii(bytes, 209, 128),
+      formatHint: ascii(bytes, 337, 32),
+      payloadSize: Number(dv.getBigUint64(16, true)),
+      payloadHash: ascii(bytes, 49, 64),
+      footerFound: footer,
+    };
   }
-  // The constitutional wrapper from @obinexusltd/nsigii shares the magic and
-  // the extension but is a different format: byte 7 is 0x07 and it ends with
-  // an ENDSIGII footer.
-  const tail = ascii(bytes, Math.max(0, bytes.length - 4096), Math.min(4096, bytes.length));
-  if (bytes[7] === 0x07 || tail.includes("ENDSIGII")) {
-    const e = new Error("This is a constitutional wrapper container, not a codec stream.");
-    e.wrapper = true;
-    throw e;
-  }
+
+  if (bytes.length < HDR) throw new Error("Codec stream is shorter than its 32-byte header.");
   const dv = new DataView(buf);
   return {
+    variant:  "codec",
     version:  ascii(bytes, 8, 8),
     width:    dv.getUint32(16, true),
     height:   dv.getUint32(20, true),
@@ -364,6 +389,44 @@ function readHeader(buf) {
     reserved: dv.getUint32(28, true),
   };
 }
+
+/* CORE_V1 decoding uses the C codec compiled to WebAssembly — never a
+   hand-written JS re-implementation. nsigii.js + nsigii.wasm + nsigii-adapter.mjs
+   come from `make wasm` in obinexus/nsigii_project and are expected next to this
+   page (they are not vendored into this repo). */
+let _corePromise = null;
+function ensureCore() {
+  if (_corePromise) return _corePromise;
+  _corePromise = (async () => {
+    if (!globalThis.NsigiiModule) {
+      await new Promise((resolve, reject) => {
+        const s = document.createElement("script");
+        s.src = new URL("./nsigii.js", location.href).href;
+        s.onload = resolve;
+        s.onerror = () => reject(new Error("nsigii.js not found next to this page"));
+        document.head.appendChild(s);
+      });
+    }
+    const { loadCore } = await import(new URL("./nsigii-adapter.mjs", location.href).href);
+    return loadCore();
+  })().catch((err) => { _corePromise = null; throw err; });
+  return _corePromise;
+}
+
+/* Browser-safe constitutional verify/extract — the ESM built from
+   obinexusmk2/nsigii → src/browser/constitutional.mts (dist/browser/
+   constitutional.mjs), placed next to this page as nsigii-constitutional.mjs.
+   Optional: without it, a wrapper is shown as an unverified receipt. */
+let _constPromise = null;
+function ensureConstitutional() {
+  if (!_constPromise) {
+    _constPromise = import(new URL("./nsigii-constitutional.mjs", location.href).href)
+      .catch((err) => { _constPromise = null; throw new Error("nsigii-constitutional.mjs not found next to this page (" + err.message + ")"); });
+  }
+  return _constPromise;
+}
+
+const MAX_DISPATCH_DEPTH = 4;
 
 function sliceFrames(buf) {
   const dv = new DataView(buf);
@@ -427,6 +490,49 @@ function showPlate(html, isError) {
 }
 
 function setStatus(text) { $("rStatus").textContent = text; }
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+/* Constitutional wrapper receipt. The payload is shown as metadata only and is
+   never executed. `verdict` (if the browser verifier ran) reports 3/3 consensus;
+   `note` carries a reason the verifier could not run. */
+function showWrapperReceipt(h, name, verdict, note) {
+  cancelAnimationFrame(S.raf);
+  $("kindBadge").hidden = true;
+  $("meta").hidden = true;
+  const rows = h.incomplete
+    ? "<p>Header is truncated — receipt fields unavailable.</p>"
+    : `<p><code>${esc(h.fileName || "?")}</code> · ${h.payloadSize} byte payload · hint
+       <code>${esc(h.formatHint || "unknown")}</code> · footer ${h.footerFound ? "present" : "missing"}</p>
+       <p style="word-break:break-all">sha256 ${esc(h.payloadHash || "?")}</p>`;
+  const line = verdict
+    ? `<p>Verification: <strong>${esc(verdict.consensus)}</strong> (${verdict.consensusCount}/3 trident).
+       ${verdict.consensus === "YES" ? "" : "Payload not released."}</p>`
+    : note
+      ? `<p>Not verified in this page: ${esc(note)}</p>`
+      : "";
+  showPlate(`<h2>Constitutional wrapper receipt</h2>
+    ${rows}
+    ${line}
+    <p>This viewer displays the container receipt only and does not execute the
+       payload. Verify and unwrap with the runtime:</p>
+    <p><code>npx nsigii verify "${esc(name)}"</code> · <code>npx nsigii extract -r "${esc(name)}"</code></p>`, false);
+  setStatus(verdict && verdict.consensus === "YES" ? "verified — not released" : "wrapper receipt");
+}
+
+function showUnknown(buf, name) {
+  cancelAnimationFrame(S.raf);
+  $("kindBadge").hidden = true;
+  $("meta").hidden = true;
+  const bytes = new Uint8Array(buf);
+  const hex = [...bytes.slice(0, 16)].map((b) => b.toString(16).padStart(2, "0")).join(" ");
+  const url = URL.createObjectURL(new Blob([bytes], { type: "application/octet-stream" }));
+  showPlate(`<h2>Not a NSIGII artifact</h2>
+    <p>${bytes.length} bytes. First bytes: <code>${hex || "(empty)"}</code></p>
+    <p>These are inert bytes — nothing is decoded, rendered, or executed.</p>
+    <p><a href="${url}" download="${esc(name || "payload.bin")}">Download</a></p>`, true);
+  setStatus("unknown — inert");
+}
 
 function showReadouts(kind) {
   const asciiBoxes = ["boxA", "boxB", "boxCell", "boxGain", "boxSpeed"];
@@ -621,30 +727,71 @@ scope.addEventListener("pointerleave", () => { S.pointer = null; });
 /* ===========================================================================
    Loading
 =========================================================================== */
-async function load(buf, name) {
-  S.name = name;
-  cancelAnimationFrame(S.raf);
-  S.frames = []; S.lastIdx = -1; S.A = S.B = 0; S.videoIdx = 0;
+/* Entry point: classify the bytes and route. Recurses, bounded, for nested
+   containers (wrapper ▸ CORE_V1 ▸ legacy stream). No payload is ever executed. */
+async function open(buf, name, depth = 0) {
+  if (depth === 0) {
+    S.name = name;
+    cancelAnimationFrame(S.raf);
+    S.frames = []; S.lastIdx = -1; S.A = S.B = 0; S.videoIdx = 0;
+  }
 
   let header;
   try {
     header = readHeader(buf);
   } catch (err) {
-    if (err.wrapper) {
-      showPlate(`<h2>Constitutional wrapper, not a codec stream</h2>
-        <p>This file carries the verification receipt format from
-        <code>@obinexusltd/nsigii</code>. It shares the magic and the extension
-        with the codec stream but is a different layout.</p>
-        <p>Unwrap it first: <code>npx @obinexusltd/nsigii extract "${name}"</code></p>`, true);
-    } else {
-      showPlate(`<h2>Could not read this container</h2><p>${err.message}</p>`, true);
-    }
+    showPlate(`<h2>Could not read this container</h2><p>${err.message}</p>`, true);
     setStatus("unreadable");
     $("kindBadge").hidden = true;
     $("meta").hidden = true;
     return;
   }
 
+  if (header.variant === "core") {
+    if (depth >= MAX_DISPATCH_DEPTH) {
+      showPlate(`<h2>Nesting too deep</h2>
+        <p>Stopped after ${MAX_DISPATCH_DEPTH} container layers.</p>`, true);
+      setStatus("nesting limit");
+      return;
+    }
+    showPlate(`<h2>Decoding NSIGII01 container…</h2>
+      <p>Layer ${depth + 1}, through the C codec compiled to WebAssembly.</p>`);
+    setStatus("decoding");
+    let decoded;
+    try {
+      const core = await ensureCore();
+      decoded = core.decode(new Uint8Array(buf));
+    } catch (err) {
+      showPlate(`<h2>Cannot decode this NSIGII01 container</h2>
+        <p>${err.message}</p>
+        <p>CORE_V1 decoding needs <code>nsigii.js</code> and <code>nsigii.wasm</code>
+        next to this page — build them with <code>make wasm</code> in
+        <code>obinexus/nsigii_project</code>.</p>`, true);
+      setStatus("no wasm codec");
+      return;
+    }
+    return open(decoded.buffer, name + " ▸ decoded", depth + 1);
+  }
+
+  if (header.variant === "wrapper") {
+    if (header.incomplete || depth >= MAX_DISPATCH_DEPTH) { showWrapperReceipt(header, name); return; }
+    let ext;
+    try {
+      const c = await ensureConstitutional();
+      setStatus("verifying");
+      showPlate(`<h2>Verifying constitutional wrapper…</h2><p>Recomputing the trident hashes.</p>`);
+      const verdict = await c.verifyBytes(new Uint8Array(buf));
+      if (verdict.consensus !== "YES") { showWrapperReceipt(header, name, verdict); return; }
+      ext = await c.extractBytes(new Uint8Array(buf));
+    } catch (err) {
+      showWrapperReceipt(header, name, null, err.message);
+      return;
+    }
+    return open(ext.bytes.buffer, name + " ▸ extracted", depth + 1);
+  }
+  if (header.variant === "unknown") { showUnknown(buf, name); return; }
+
+  // header.variant === "codec"
   S.header = header;
   S.kind = payloadKind(header.version);
   const blobs = sliceFrames(buf);
@@ -749,7 +896,7 @@ function buildMeta(h, blobs, frames, name) {
 async function readFile(file) {
   setStatus("reading");
   const buf = await file.arrayBuffer();
-  await load(buf, file.name);
+  await open(buf, file.name);
 }
 
 $("fileInput").addEventListener("change", (e) => {
@@ -830,7 +977,7 @@ addEventListener("keydown", (e) => {
     setStatus("fetching");
     const res = await fetch(src);
     if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-    await load(await res.arrayBuffer(), src.split("/").pop());
+    await open(await res.arrayBuffer(), src.split("/").pop());
   } catch (err) {
     showPlate(`<h2>Could not fetch that container</h2>
       <p>${err.message}</p>
